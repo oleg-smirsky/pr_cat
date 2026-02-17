@@ -161,7 +161,7 @@ export async function validateWebhook(
   request: Request,
   secret: string,
   allowedEvents: string[] = ['pull_request', 'pull_request_review', 'installation', 'ping']
-): Promise<{ valid: boolean; error?: string; eventType?: string; payload?: any }> {
+): Promise<{ valid: boolean; error?: string; eventType?: string; payload?: unknown }> {
   // Extract headers
   const signature = request.headers.get('x-hub-signature-256');
   const eventType = request.headers.get('x-github-event');
@@ -184,7 +184,7 @@ export async function validateWebhook(
   let bodyText: string;
   try {
     bodyText = await request.text();
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Failed to read request body' };
   }
   
@@ -201,10 +201,10 @@ export async function validateWebhook(
   }
   
   // Parse JSON
-  let payload: any;
+  let payload: unknown;
   try {
     payload = JSON.parse(bodyText);
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid JSON payload' };
   }
   

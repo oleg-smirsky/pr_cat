@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Users, Edit, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import { 
   Card, 
@@ -19,9 +19,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger, 
-  DialogDescription,
-  DialogFooter
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { 
   Select, 
@@ -82,7 +80,8 @@ const getRoleColor = (role: string) => {
 
 export function TeamManagement({ organizationId, organizationMembers, onRefreshMembers }: TeamManagementProps) {
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
-  const [orgMembers, setOrgMembers] = useState<User[]>(organizationMembers || []);
+  const [fetchedOrgMembers, setFetchedOrgMembers] = useState<User[]>([]);
+  const optimisticMemberIdRef = React.useRef(-1);
   const [memberSearch, setMemberSearch] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -107,9 +106,10 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     user_id: '',
     role: 'member'
   });
+  const orgMembers = organizationMembers ?? fetchedOrgMembers;
 
   // Fetch teams
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     try {
       const response = await fetch(`/api/organizations/${organizationId}/teams`);
       if (response.ok) {
@@ -122,19 +122,11 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
       console.error('Error fetching teams:', error);
       toast.error('Failed to fetch teams');
     }
-  };
-
-  // Keep local member list in sync if parent provides it
-  useEffect(() => {
-    if (organizationMembers) {
-      setOrgMembers(organizationMembers);
-    }
-  }, [organizationMembers]);
+  }, [organizationId]);
 
   // Fetch organization members
-  const fetchOrgMembers = async () => {
+  const fetchOrgMembers = useCallback(async () => {
     if (organizationMembers && organizationMembers.length > 0) {
-      setOrgMembers(organizationMembers);
       return;
     }
     try {
@@ -142,12 +134,12 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
       const response = await fetch(`/api/organizations/${organizationId}/members${qs}`);
       if (response.ok) {
         const data = await response.json();
-        setOrgMembers(Array.isArray(data) ? data : []);
+        setFetchedOrgMembers(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching organization members:', error);
     }
-  };
+  }, [memberSearch, organizationId, organizationMembers]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -155,21 +147,33 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
       await Promise.all([fetchTeams(), fetchOrgMembers()]);
       setLoading(false);
     };
-    loadData();
-  }, [organizationId]);
+    void loadData();
+  }, [fetchOrgMembers, fetchTeams]);
 
   // When opening add-member dialog, refresh member list (and support search)
   useEffect(() => {
     if (showAddMemberDialog) {
       if (onRefreshMembers) {
-        Promise.resolve(onRefreshMembers(memberSearch)).then(() => {
+        void Promise.resolve(onRefreshMembers(memberSearch)).then(() => {
           // parent will update organizationMembers prop; sync will pick it up via effect
         });
-      } else {
-        fetchOrgMembers();
+      } else if (!(organizationMembers && organizationMembers.length > 0)) {
+        const loadMembersForDialog = async () => {
+          try {
+            const qs = memberSearch ? `?search=${encodeURIComponent(memberSearch)}` : '';
+            const response = await fetch(`/api/organizations/${organizationId}/members${qs}`);
+            if (response.ok) {
+              const data = await response.json();
+              setFetchedOrgMembers(Array.isArray(data) ? data : []);
+            }
+          } catch (error) {
+            console.error('Error fetching organization members:', error);
+          }
+        };
+        void loadMembersForDialog();
       }
     }
-  }, [showAddMemberDialog, memberSearch]);
+  }, [memberSearch, onRefreshMembers, organizationId, organizationMembers, showAddMemberDialog]);
 
   // Create team
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -261,8 +265,11 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     console.log('Selected team:', selectedTeam);
 
     // Optimistic update: immediately add the member to the UI
+    const optimisticMemberId = optimisticMemberIdRef.current;
+    optimisticMemberIdRef.current -= 1;
+
     const newMember = {
-      id: Date.now(), // Temporary ID for optimistic update
+      id: optimisticMemberId, // Temporary ID for optimistic update
       team_id: selectedTeam.id,
       user_id: dataToSend.user_id,
       role: dataToSend.role,
@@ -373,28 +380,6 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     }
   };
 
-  // Update member role
-  const handleUpdateMemberRole = async (teamId: number, userId: string, newRole: string) => {
-    try {
-      const response = await fetch(`/api/organizations/${organizationId}/teams/${teamId}/members`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, role: newRole })
-      });
-
-      if (response.ok) {
-        toast.success('Member role updated successfully');
-        fetchTeams();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to update member role');
-      }
-    } catch (error) {
-      console.error('Error updating member role:', error);
-      toast.error('Failed to update member role');
-    }
-  };
-
   const openEditDialog = (team: TeamWithMembers) => {
     setSelectedTeam(team);
     setEditForm({
@@ -472,7 +457,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
               </div>
               <div>
                 <Label htmlFor="team-color">Team Color</Label>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2" role="group" aria-label="Choose team color">
                   {DEFAULT_TEAM_COLORS.map((color) => (
                     <button
                       key={color}
@@ -481,6 +466,8 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                         createForm.color === color ? 'border-gray-900 dark:border-gray-100' : 'border-gray-300'
                       }`}
                       style={{ backgroundColor: color }}
+                      aria-label={`Select team color ${color}`}
+                      aria-pressed={createForm.color === color}
                       onClick={() => setCreateForm({ ...createForm, color })}
                     />
                   ))}
@@ -529,12 +516,17 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                     <CardTitle className="text-lg">{team.name}</CardTitle>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(team)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditDialog(team)}
+                      aria-label={`Edit team ${team.name}`}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" aria-label={`Delete team ${team.name}`}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -542,7 +534,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete Team</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete "{team.name}"? This action cannot be undone.
+                            Are you sure you want to delete &quot;{team.name}&quot;? This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -629,7 +621,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                     <div className="text-center py-4 text-muted-foreground">
                       <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No members yet</p>
-                      <p className="text-xs">Click "Manage" to add team members</p>
+                      <p className="text-xs">Click &quot;Manage&quot; to add team members</p>
                     </div>
                   )}
                 </div>
@@ -665,7 +657,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
             </div>
             <div>
               <Label htmlFor="edit-team-color">Team Color</Label>
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2" role="group" aria-label="Choose team color">
                 {DEFAULT_TEAM_COLORS.map((color) => (
                   <button
                     key={color}
@@ -674,6 +666,8 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                       editForm.color === color ? 'border-gray-900 dark:border-gray-100' : 'border-gray-300'
                     }`}
                     style={{ backgroundColor: color }}
+                    aria-label={`Select team color ${color}`}
+                    aria-pressed={editForm.color === color}
                     onClick={() => setEditForm({ ...editForm, color })}
                   />
                 ))}
@@ -855,6 +849,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                                 size="sm"
                                 className="h-7 px-2 text-destructive hover:bg-destructive/10 border-destructive/20"
                                 onClick={() => handleRemoveMember(selectedTeam.id, member.user_id)}
+                                aria-label={`Remove ${member.user?.name || member.user?.email || 'member'} from ${selectedTeam.name}`}
                               >
                                 <UserMinus className="h-3 w-3" />
                               </Button>

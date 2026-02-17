@@ -167,7 +167,7 @@ export function PRActivityTable() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            No recent pull request activity. Pull requests will appear here once they're created in your repositories.
+            No recent pull request activity. Pull requests will appear here once they&apos;re created in your repositories.
           </p>
         </CardContent>
       </Card>

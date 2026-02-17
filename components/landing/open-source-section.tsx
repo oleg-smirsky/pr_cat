@@ -85,7 +85,7 @@ export function OpenSourceSection() {
           <h3 className="text-2xl font-bold mb-4">No Vendor Lock-in, Ever</h3>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Your data stays yours. Deploy anywhere, modify anything, contribute back if you want. 
-            That's the promise of truly open source software.
+            That&apos;s the promise of truly open source software.
           </p>
         </div>
       </div>

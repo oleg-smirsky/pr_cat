@@ -14,9 +14,6 @@ export function resetDbMocks() {
   mockCheckDbHealth.mockReset();
 }
 
-// Export mockExecute separately for convenience
-export { mockExecute };
-
 // Helper to setup common mock responses
 export function setupDbMocks() {
   mockQuery.mockResolvedValue([]);

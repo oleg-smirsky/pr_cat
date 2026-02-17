@@ -6,8 +6,7 @@ import { useState } from "react"
 import {
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
-  useSidebar
+  SidebarMenuButton
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -25,9 +24,8 @@ import {
 import { IconBrandGithub, IconMoon, IconSun, IconDeviceDesktop, IconLoader2 } from "@tabler/icons-react"
 
 export function NavUser() {
-  const { } = useSidebar()
   const { data: session } = useSession()
-  const { setTheme, theme } = useTheme()
+  const { setTheme } = useTheme()
   const [isSigningIn, setIsSigningIn] = useState(false)
 
   const handleSignIn = async () => {

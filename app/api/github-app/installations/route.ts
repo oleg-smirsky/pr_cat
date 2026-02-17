@@ -3,7 +3,7 @@
  * Lists and manages GitHub App installations
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getService } from '@/lib/core/container/di-container'
 import { IGitHubAppService } from '@/lib/core/ports'

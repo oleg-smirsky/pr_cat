@@ -128,7 +128,7 @@ export interface IGitHubService {
    */
   processWebhookEvent(
     event: string,
-    payload: any
+    payload: unknown
   ): Promise<{
     processed: boolean
     actions: string[]

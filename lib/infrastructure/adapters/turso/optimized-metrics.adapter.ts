@@ -13,6 +13,7 @@ import {
 import { RepositoryInsights } from '../../../core/domain/entities'
 import { TimeRange } from '../../../core/domain/value-objects'
 import { query } from '@/lib/db'
+import type { InValue } from '@libsql/client'
 
 export class OptimizedTursoMetricsService implements IMetricsService {
   
@@ -158,7 +159,7 @@ export class OptimizedTursoMetricsService implements IMetricsService {
     
     let whereClause = 'WHERE r.organization_id = ?'
     let joinClause = ''
-    let params: any[] = [orgId]
+    const params: InValue[] = [orgId]
 
     if (repositoryId) {
       whereClause += ' AND pr.repository_id = ?'
@@ -457,7 +458,7 @@ export class OptimizedTursoMetricsService implements IMetricsService {
 
     let whereClause = 'WHERE r.organization_id = ?'
     let joinClause = ''
-    let params: any[] = [orgId]
+    const params: InValue[] = [orgId]
 
     if (repositoryIds && repositoryIds.length > 0) {
       const placeholders = repositoryIds.map(() => '?').join(',')
@@ -693,15 +694,15 @@ export class OptimizedTursoMetricsService implements IMetricsService {
   }
 
   // Other methods stay the same
-  async getDeveloperMetrics(organizationId: string, userId?: string, timeRange?: TimeRange) {
+  async getDeveloperMetrics(_organizationId: string, _userId?: string, _timeRange?: TimeRange) {
     return []
   }
 
-  async getCycleTimeTrends(organizationId: string, repositoryId?: string, timeRange?: TimeRange) {
+  async getCycleTimeTrends(_organizationId: string, _repositoryId?: string, _timeRange?: TimeRange) {
     return []
   }
 
-  async getReviewCoverage(organizationId: string, timeRange?: TimeRange) {
+  async getReviewCoverage(_organizationId: string, _timeRange?: TimeRange) {
     return {
       totalPRs: 0,
       reviewedPRs: 0,

@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { ServiceLocator, withAuth, ApplicationContext } from '@/lib/core';
 
 export const runtime = 'nodejs';
 
 // Pure business logic handler
 const repositoriesHandler = async (
-  context: ApplicationContext,
-  request: NextRequest
+  context: ApplicationContext
 ): Promise<NextResponse> => {
   try {
     // Get organization repository via dependency injection

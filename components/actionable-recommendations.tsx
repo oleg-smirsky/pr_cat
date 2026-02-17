@@ -190,7 +190,7 @@ export function ActionableRecommendations() {
             </div>
             <h3 className="text-lg font-semibold mb-2">All Systems Running Well</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              No significant optimization opportunities identified. Your team's development workflow is performing efficiently.
+              No significant optimization opportunities identified. Your team&apos;s development workflow is performing efficiently.
             </p>
           </div>
         </CardContent>

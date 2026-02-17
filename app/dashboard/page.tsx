@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/sidebar"
 import { SetupStatusAlert } from "@/components/ui/setup-status-alert"
 import { DemoModeBanner } from "@/components/ui/demo-mode-banner"
-import { EnvironmentConfig } from "@/lib/core"
+import { EnvironmentConfig, ServiceLocator } from "@/lib/core"
+import type { CategoryTimeSeriesData, TimeSeriesDataPoint } from "@/lib/core"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
 import { auth } from "@/auth"
 import { ensureUserExists } from "@/lib/user-utils"
@@ -31,44 +32,38 @@ const SIDEBAR_STYLES = {
 // Enable PPR for this route
 export const experimental_ppr = true
 
-// Server-side data fetching for slow components
-async function fetchChartData(organizationId: string) {
+async function TeamFlowMetricsSection({ organizationId }: { organizationId: string }) {
+  let timeSeriesData: TimeSeriesDataPoint[] | null = null
+
   try {
-    // Fetch both slow API endpoints in parallel
-    const [timeSeriesRes, categoryDistributionRes] = await Promise.allSettled([
-      // Team Flow Metrics data
-      fetch(`${process.env.NEXTAUTH_URL}/api/metrics/time-series`, {
-        headers: { 'x-organization-id': organizationId }
-      }),
-      // Focus Distribution data  
-      fetch(`${process.env.NEXTAUTH_URL}/api/pull-requests/category-distribution?timeRange=30d&format=timeseries`, {
-        headers: { 'x-organization-id': organizationId }
-      })
-    ]);
-
-    let timeSeriesData = null;
-    let categoryDistributionData = null;
-
-    // Extract successful results
-    if (timeSeriesRes.status === 'fulfilled' && timeSeriesRes.value.ok) {
-      timeSeriesData = await timeSeriesRes.value.json();
-    }
-
-    if (categoryDistributionRes.status === 'fulfilled' && categoryDistributionRes.value.ok) {
-      categoryDistributionData = await categoryDistributionRes.value.json();
-    }
-
-    return {
-      timeSeriesData,
-      categoryDistributionData,
-    };
+    const metricsService = await ServiceLocator.getMetricsService()
+    timeSeriesData = await metricsService.getTimeSeries(organizationId, 14)
   } catch (error) {
-    console.warn('Server-side chart data fetch failed (non-blocking):', error);
-    return {
-      timeSeriesData: null,
-      categoryDistributionData: null,
-    };
+    console.warn("Server-side time series fetch failed:", error)
   }
+
+  if (timeSeriesData && timeSeriesData.length > 0) {
+    return <EnhancedCompactEngineeringMetrics initialData={timeSeriesData} />
+  }
+
+  return <CompactEngineeringMetrics />
+}
+
+async function FocusDistributionSection({ organizationId }: { organizationId: string }) {
+  let categoryDistributionData: CategoryTimeSeriesData | null = null
+
+  try {
+    const prRepository = await ServiceLocator.getPullRequestRepository()
+    categoryDistributionData = await prRepository.getCategoryTimeSeries(organizationId, 30)
+  } catch (error) {
+    console.warn("Server-side category distribution fetch failed:", error)
+  }
+
+  if (categoryDistributionData && categoryDistributionData.data.length > 0) {
+    return <EnhancedInvestmentAreaDistribution initialData={categoryDistributionData} />
+  }
+
+  return <InvestmentAreaDistribution />
 }
 
 export default async function DashboardPage() {
@@ -94,9 +89,6 @@ export default async function DashboardPage() {
   const organizations = session?.organizations || []
   const primaryOrg = organizations[0]
   const orgId = primaryOrg?.id?.toString() || "demo-org-1"
-  
-  // Fetch chart data server-side for performance boost
-  const chartData = await fetchChartData(orgId);
   
   // Setup incomplete only applies to production mode
   const setupIncomplete = !isDemoMode && session?.hasGithubApp === false;
@@ -147,18 +139,10 @@ export default async function DashboardPage() {
                 {/* Secondary metrics grid - enhanced with server-side data */}
                 <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 md:grid-cols-2">
                   <Suspense fallback={<CompactMetricsSkeleton />}>
-                    {chartData.timeSeriesData ? (
-                      <EnhancedCompactEngineeringMetrics initialData={chartData.timeSeriesData} />
-                    ) : (
-                      <CompactEngineeringMetrics />
-                    )}
+                    <TeamFlowMetricsSection organizationId={orgId} />
                   </Suspense>
                   <Suspense fallback={<CompactMetricsSkeleton />}>
-                    {chartData.categoryDistributionData ? (
-                      <EnhancedInvestmentAreaDistribution initialData={chartData.categoryDistributionData} />
-                    ) : (
-                      <InvestmentAreaDistribution />
-                    )}
+                    <FocusDistributionSection organizationId={orgId} />
                   </Suspense>
                 </div>
                 

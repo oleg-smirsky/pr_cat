@@ -23,8 +23,8 @@ export class DemoPullRequestRepository implements IPullRequestRepository {
   async getRecent(
     organizationId: string, 
     pagination?: Pagination,
-    teamId?: number,
-    timeRange?: string
+    _teamId?: number,
+    _timeRange?: string
   ): Promise<PaginatedResult<PullRequestSummary>> {
     const page = pagination || Pagination.create(1, 10)
     const startIndex = page.offset
@@ -134,8 +134,8 @@ export class DemoPullRequestRepository implements IPullRequestRepository {
   }
 
   async getCategoryDistribution(
-    organizationId: string,
-    timeRange?: TimeRange
+    _organizationId: string,
+    _timeRange?: TimeRange
   ): Promise<CategoryDistribution[]> {
     // For simplicity, return static data regardless of time range
     return DEMO_CATEGORY_DISTRIBUTION

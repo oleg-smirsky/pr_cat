@@ -48,7 +48,7 @@ export function mapDbPullRequestToSummary(
   repositoryName?: string,
   categoryName?: string,
   authorLogin?: string,
-  authorAvatar?: string
+  _authorAvatar?: string
 ): PullRequestSummary {
   return {
     id: dbPR.id.toString(),

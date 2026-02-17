@@ -3,9 +3,13 @@ import { findUserWithOrganizations } from '@/lib/repositories/user-repository';
 // Note: This file is largely obsolete after hexagonal architecture migration
 // Only kept for legacy routes that haven't been migrated to withAuth middleware
 
+type UserWithOrganizationsResult = NonNullable<
+  Awaited<ReturnType<typeof findUserWithOrganizations>>
+>;
+
 // Request-level cache to avoid repeated user queries
 const requestCache = new WeakMap<Request, {
-  userWithOrganizations?: { user: any; organizations: any[] };
+  userWithOrganizations?: UserWithOrganizationsResult;
 }>();
 
 /**

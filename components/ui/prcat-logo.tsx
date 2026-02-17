@@ -3,23 +3,29 @@
 import { cn } from "@/lib/utils";
 import React from "react";
 
+type PrcatLogoTone = "default" | "inverse";
+
 interface PrcatLogoProps {
   className?: string;
-  dark?: boolean;
+  tone?: PrcatLogoTone;
   iconSize?: string;
   fontSize?: string;
 }
 
-export function PrcatLogo({ 
+type PrcatLogoVariantProps = Omit<PrcatLogoProps, "tone">;
+
+function PrcatLogoBase({
   className, 
-  dark = false, 
+  tone = "default",
   iconSize = "h-5 w-5", 
   fontSize = "text-lg"
 }: PrcatLogoProps) {
+  const isInverse = tone === "inverse";
+
   return (
     <div className={cn("inline-flex flex-row items-center", className)}>
       <div className="flex flex-row items-center">
-        <span className={cn("inline-block font-bold", fontSize, dark ? "text-white" : "text-foreground")}>PR</span>
+        <span className={cn("inline-block font-bold", fontSize, isInverse ? "text-white" : "text-foreground")}>PR</span>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
           fill="none" 
@@ -27,7 +33,7 @@ export function PrcatLogo({
           className={cn(
             iconSize,
             "mx-0.5 inline-block",
-            dark ? "fill-white" : "fill-primary"
+            isInverse ? "fill-white" : "fill-primary"
           )}
         >
           <path 
@@ -37,8 +43,20 @@ export function PrcatLogo({
             clipRule="evenodd"
           />
         </svg>
-        <span className={cn("inline-block font-bold", fontSize, dark ? "text-white" : "text-foreground")}>Cat</span>
+        <span className={cn("inline-block font-bold", fontSize, isInverse ? "text-white" : "text-foreground")}>Cat</span>
       </div>
     </div>
   );
-} 
+}
+
+export function PrcatLogo(props: PrcatLogoProps) {
+  return <PrcatLogoBase {...props} />;
+}
+
+export function PrcatLogoDefault(props: PrcatLogoVariantProps) {
+  return <PrcatLogoBase tone="default" {...props} />;
+}
+
+export function PrcatLogoInverse(props: PrcatLogoVariantProps) {
+  return <PrcatLogoBase tone="inverse" {...props} />;
+}

@@ -3,7 +3,7 @@
  * Provides convenient access to services with proper typing
  */
 
-import { DIContainer, ServiceName } from './di-container'
+import { DIContainer } from './di-container'
 import {
   IPullRequestRepository,
   IMetricsService,

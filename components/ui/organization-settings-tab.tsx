@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { OrganizationCategoryManager } from './organization-category-manager';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
 import { Avatar, AvatarImage, AvatarFallback } from './avatar';
 import { Button } from './button'; // If needed for styling list items
-import { Organization } from '@/lib/types'; // Use the existing Organization type
 import type { OrganizationWithInstallation } from '@/components/ui/github-org-setup-item';
 
 interface OrganizationSettingsTabProps {
@@ -14,15 +13,9 @@ interface OrganizationSettingsTabProps {
 }
 
 export function OrganizationSettingsTab({ organizations, selectedOrganization: parentSelectedOrg }: OrganizationSettingsTabProps) {
-  const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithInstallation | null>(null); // Local selection for categories
-
-  // Organizations are now passed as props from parent
-  // Set initial selection based on parent's selected organization
-  useEffect(() => {
-    if (parentSelectedOrg) {
-      setSelectedOrganization(parentSelectedOrg);
-    }
-  }, [parentSelectedOrg]);
+  const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithInstallation | null>(
+    parentSelectedOrg || organizations[0] || null
+  ); // Local selection for categories
 
   if (organizations.length === 0) {
     return (

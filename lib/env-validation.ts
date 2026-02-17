@@ -37,7 +37,7 @@ const envSchema = z.object({
 type EnvSchema = z.infer<typeof envSchema>;
 
 // Generate secure defaults for missing environment variables
-function generateDefaults(env: any) {
+function generateDefaults(env: NodeJS.ProcessEnv) {
   const defaults = { ...env };
   
   // Auto-generate NEXTAUTH_SECRET if not provided (for demo mode)

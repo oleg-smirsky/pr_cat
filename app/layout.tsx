@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "@/components/theme-provider"
-import { TeamFilterProvider } from "@/hooks/use-team-filter";
 import { SessionProvider } from "next-auth/react";
 import { Geist, Geist_Mono, Noto_Sans } from "next/font/google";
 import "./globals.css";
@@ -89,9 +88,7 @@ export default function RootLayout({
             storageKey="pr-cat-theme"
             enableColorScheme
           >
-            <TeamFilterProvider>
-              {children}
-            </TeamFilterProvider>
+            {children}
           </ThemeProvider>
         </SessionProvider>
       </body>

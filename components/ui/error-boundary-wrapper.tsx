@@ -79,8 +79,6 @@ function ErrorFallback({
   resetError: () => void;
   errorInfo: ErrorInfo | null;
 }) {
-  const [showDetails, setShowDetails] = React.useState(false);
-  
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
       <div className="max-w-2xl w-full space-y-6">
@@ -109,7 +107,7 @@ function ErrorFallback({
 
         {/* Subtle message */}
         <p className="text-center text-sm text-gray-400">
-          Don't worry, we've logged this issue and will look into it
+          Don&apos;t worry, we&apos;ve logged this issue and will look into it
         </p>
 
         {/* Development details */}
@@ -118,7 +116,7 @@ function ErrorFallback({
             <details className="group">
               <summary className="flex items-center justify-center gap-2 text-xs text-gray-500 hover:text-gray-400 cursor-pointer transition-colors">
                 <AlertTriangle className="w-3 h-3" />
-                <span>{showDetails ? 'Hide' : 'Show'} Debug Info</span>
+                <span>Show Debug Info</span>
               </summary>
               
               <div className="mt-4 space-y-3">

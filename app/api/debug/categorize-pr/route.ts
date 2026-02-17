@@ -12,9 +12,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { GitHubClient } from '@/lib/github';
 import { createInstallationClient } from '@/lib/github-app';
-import { Octokit } from '@octokit/rest';
 import { findOrganizationById } from '@/lib/repositories/organization-repository';
 
 export async function GET(request: NextRequest) {
@@ -143,14 +141,30 @@ export async function GET(request: NextRequest) {
     try {
       // Try to fetch the PR diff
       diff = await githubClient.getPullRequestDiff(owner, repo, pullRequest.number);
-    } catch (diffError: any) {
+    } catch (diffError: unknown) {
+      const diffErrorMessage =
+        diffError instanceof Error
+          ? diffError.message
+          : typeof diffError === 'object' &&
+              diffError !== null &&
+              'message' in diffError &&
+              typeof diffError.message === 'string'
+            ? diffError.message
+            : '';
+      const diffErrorStatus =
+        typeof diffError === 'object' &&
+        diffError !== null &&
+        'status' in diffError &&
+        typeof diffError.status === 'number'
+          ? diffError.status
+          : undefined;
       // Check if it's a token expiration error
-      if (diffError.message && (
-          diffError.message.includes('expired') || 
-          diffError.message.includes('GitHub token expired') || 
-          diffError.message.includes('invalid') ||
-          diffError.message.includes('Bad credentials') ||
-          diffError.status === 401)
+      if (diffErrorMessage && (
+          diffErrorMessage.includes('expired') || 
+          diffErrorMessage.includes('GitHub token expired') || 
+          diffErrorMessage.includes('invalid') ||
+          diffErrorMessage.includes('Bad credentials') ||
+          diffErrorStatus === 401)
       ) {
         console.warn(`DEBUG TOKEN ERROR: Installation token for ${organization.installation_id} appears to be expired or invalid. Attempting to create a new client.`);
         

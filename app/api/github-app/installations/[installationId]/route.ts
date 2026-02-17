@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { getService } from '@/lib/core/container/di-container'
 import { IGitHubAppService } from '@/lib/core/ports'
+import type { Repository } from '@/lib/core/domain/entities'
 
 
 export const runtime = 'nodejs'
@@ -43,7 +44,7 @@ export async function GET(
     
     // Get repositories if requested
     const includeRepos = request.nextUrl.searchParams.get('include_repositories') === 'true'
-    let repositories: any[] | undefined = undefined
+    let repositories: Repository[] | undefined = undefined
     
     if (includeRepos) {
       try {

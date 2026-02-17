@@ -11,12 +11,23 @@
 - `scripts/`: One-off Node scripts (e.g. `scripts/generate-mock-data.js`).
 - `public/`: Static assets served by Next.js.
 
+## Agent Orientation Harness
+
+- Start with `docs/README.md` for reading order and architecture entrypoints.
+- Canonical architecture map: `docs/architecture/README.md`.
+- Current migration state (core vs legacy modules): `docs/architecture/migration-status.md`.
+- Route-level implementation playbook: `docs/playbooks/change-routing.md`.
+- Machine-readable architecture contracts:
+- `docs/architecture/repository-manifest.json`
+- `docs/architecture/dependency-rules.json`
+
 ## Build, Test, and Development Commands
 
 - `pnpm install`: Install dependencies (pnpm is the expected package manager).
 - `pnpm dev`: Run local dev server (Next.js with Turbopack).
 - `pnpm build` / `pnpm start`: Production build and local production server.
-- `pnpm lint`: Run ESLint across the repo.
+- `pnpm lint`: Run ESLint and architecture harness checks across the repo.
+- `pnpm architecture:check`: Validate architecture manifest and dependency boundaries.
 - `pnpm test`: Run the full Jest suite.
 - `pnpm test:watch`: Watch mode for local iteration.
 - `pnpm test:unit` / `pnpm test:integration`: Narrow runs for `__tests__/lib` and `__tests__/api`.

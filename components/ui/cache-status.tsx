@@ -4,25 +4,51 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { IconClock, IconRefresh, IconCheck, IconAlertCircle } from "@tabler/icons-react";
 
-interface CacheStatusProps {
-  isLoading?: boolean;
-  error?: Error | null;
+type CacheDataCompleteness = "complete" | "incomplete";
+
+interface CacheStatusBaseProps {
   lastUpdated?: Date;
   dataDate?: string;
   cacheStrategy?: string;
-  isComplete?: boolean;
   nextUpdate?: string;
 }
 
-export function CacheStatus({ 
-  isLoading, 
-  error, 
-  lastUpdated, 
+type CacheStatusLoadingProps = CacheStatusBaseProps & {
+  status: "loading";
+};
+
+type CacheStatusErrorProps = CacheStatusBaseProps & {
+  status: "error";
+  errorMessage?: string;
+};
+
+type CacheStatusReadyProps = CacheStatusBaseProps & {
+  status: "ready";
+  completeness?: CacheDataCompleteness;
+};
+
+type CacheStatusProps =
+  | CacheStatusLoadingProps
+  | CacheStatusErrorProps
+  | CacheStatusReadyProps;
+
+export function CacheStatus({
+  status,
+  lastUpdated,
   dataDate,
   cacheStrategy = 'daily-complete-data',
-  isComplete = true,
-  nextUpdate
+  ...rest
 }: CacheStatusProps) {
+  const nextUpdate = rest.nextUpdate;
+  const completeness =
+    status === "ready" && "completeness" in rest
+      ? (rest.completeness ?? "complete")
+      : "complete";
+  const errorMessage =
+    status === "error" && "errorMessage" in rest
+      ? rest.errorMessage
+      : undefined;
+
   const formatTime = (date: Date | string) => {
     const d = typeof date === 'string' ? new Date(date) : date;
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -33,7 +59,7 @@ export function CacheStatus({
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (d.toDateString() === today.toDateString()) {
       return 'Today';
     } else if (d.toDateString() === yesterday.toDateString()) {
@@ -45,13 +71,12 @@ export function CacheStatus({
 
   const getDataDateInfo = () => {
     if (!dataDate) return null;
-    
+
     const date = new Date(dataDate);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
-    // Check if data is from yesterday (complete) or today (incomplete)
+
     if (date.toDateString() === yesterday.toDateString()) {
       return {
         text: `Data through ${formatDate(date)}`,
@@ -75,11 +100,11 @@ export function CacheStatus({
 
   const getNextUpdateInfo = () => {
     if (!nextUpdate) return null;
-    
+
     const nextDate = new Date(nextUpdate);
     const now = new Date();
     const hoursUntil = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60));
-    
+
     if (hoursUntil <= 0) {
       return 'Update available';
     } else if (hoursUntil < 24) {
@@ -89,19 +114,19 @@ export function CacheStatus({
     }
   };
 
-  if (error) {
+  if (status === "error") {
     return (
       <div className="flex items-center space-x-2 text-sm">
         <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
         <span className="text-gray-400">Data unavailable</span>
         <Badge variant="outline" className="text-xs border-amber-400/30 text-amber-400">
-          Loading issue
+          {errorMessage ? "Loading issue" : "Unavailable"}
         </Badge>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <IconRefresh className="w-4 h-4 animate-spin" />
@@ -118,7 +143,6 @@ export function CacheStatus({
 
   return (
     <div className="flex items-center space-x-3 text-sm">
-      {/* Data date status */}
       {dataInfo && (
         <div className="flex items-center space-x-1">
           {dataInfo.icon}
@@ -126,7 +150,6 @@ export function CacheStatus({
         </div>
       )}
 
-      {/* Last updated */}
       {lastUpdated && (
         <div className="flex items-center space-x-1 text-muted-foreground">
           <IconClock className="w-3 h-3" />
@@ -134,20 +157,17 @@ export function CacheStatus({
         </div>
       )}
 
-      {/* Cache strategy badge */}
       <Badge variant="outline" className="text-xs">
         {cacheStrategy === 'daily-complete-data' ? 'Daily Cache' : 'Cached'}
       </Badge>
 
-      {/* Next update info */}
       {nextUpdateText && (
         <span className="text-xs text-muted-foreground">
           {nextUpdateText}
         </span>
       )}
 
-      {/* Data completeness indicator */}
-      {!isComplete && (
+      {completeness === "incomplete" && (
         <Badge variant="secondary" className="text-xs">
           <IconAlertCircle className="w-3 h-3 mr-1" />
           Incomplete
@@ -155,4 +175,4 @@ export function CacheStatus({
       )}
     </div>
   );
-} 
+}

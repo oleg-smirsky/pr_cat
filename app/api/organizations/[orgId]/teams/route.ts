@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ServiceLocator, withAuth, ApplicationContext } from '@/lib/core';
+import { withAuth, ApplicationContext } from '@/lib/core';
 import { TeamService } from '@/lib/services';
-import { unauthorized, badRequest, forbidden, errorResponse } from '@/lib/api-errors';
+import { badRequest, errorResponse } from '@/lib/api-errors';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -9,7 +9,7 @@ export const runtime = 'nodejs';
 // Pure business logic handler
 const organizationTeamsHandler = async (
   context: ApplicationContext,
-  request: NextRequest,
+  _request: NextRequest,
   params: { orgId: string }
 ): Promise<NextResponse> => {
   try {
@@ -102,13 +102,6 @@ const createTeamHandler = async (
     
     const { name, description, color } = validationResult.data;
     
-    const newTeamData = {
-      organization_id: orgIdInt,
-      name: name.trim(),
-      description: description?.trim() || null,
-      color: color?.trim() || null,
-    };
-
     const createdTeam = await TeamService.createTeam(context.user.id, {
       organizationId: orgIdInt,
       name: name.trim(),

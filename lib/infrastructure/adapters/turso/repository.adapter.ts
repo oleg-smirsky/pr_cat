@@ -6,10 +6,11 @@
 import { IRepository } from '../../../core/ports'
 import { Repository, RepositoryMetrics } from '../../../core/domain/entities'
 import { Pagination, PaginatedResult, TimeRange } from '../../../core/domain/value-objects'
-import { query, execute } from '@/lib/db'
+import { query } from '@/lib/db'
 import * as RepositoryRepository from '@/lib/repositories/repository-repository'
 import { mapDbRepositoryToDomain } from './mappers'
 import * as DbTypes from '@/lib/types'
+import type { InValue } from '@libsql/client'
 
 export class TursoRepository implements IRepository {
   
@@ -34,7 +35,7 @@ export class TursoRepository implements IRepository {
     try {
       const orgId = parseInt(organizationId)
       let whereClause = 'WHERE organization_id = ?'
-      const params: any[] = [orgId]
+      const params: InValue[] = [orgId]
 
       if (filters?.isTracked !== undefined) {
         whereClause += ' AND is_tracked = ?'

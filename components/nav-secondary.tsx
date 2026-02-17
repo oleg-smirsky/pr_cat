@@ -14,23 +14,27 @@ import {
 
 export function NavSecondary({
   items,
+  currentPath,
   ...props
 }: {
   items: {
     title: string
     url: string
     icon: Icon
-    isActive?: boolean
   }[]
+  currentPath?: string
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => (
+          {items.map((item) => {
+            const isItemActive = currentPath === item.url
+
+            return (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton 
-                className={item.isActive ? "bg-background text-foreground shadow-sm" : ""}
+                isActive={isItemActive}
                 asChild
               >
                 <Link href={item.url}>
@@ -39,7 +43,8 @@ export function NavSecondary({
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          ))}
+            )
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

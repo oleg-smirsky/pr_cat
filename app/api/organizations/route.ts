@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ServiceLocator, withAuth, ApplicationContext } from '@/lib/core';
+import { NextResponse } from 'next/server';
+import { withAuth, ApplicationContext } from '@/lib/core';
 
 // Pure business logic handler
 const organizationsHandler = async (
-  context: ApplicationContext,
-  request: NextRequest
+  context: ApplicationContext
 ): Promise<NextResponse> => {
   try {
     // Organizations are already available in the authenticated context

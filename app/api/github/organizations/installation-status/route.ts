@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getService } from '@/lib/core/container/di-container';
 import { IGitHubAppService } from '@/lib/core/ports';
 
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   console.log(`GitHub Organizations installation-status API called: ${new Date().toISOString()}`);
   
   const session = await auth();

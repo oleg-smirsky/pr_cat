@@ -25,7 +25,6 @@ import {
   IconQuestionMark,
   IconMail,
   IconBook,
-  IconApi,
   IconInfoCircle
 } from "@tabler/icons-react";
 import { headers } from "next/headers";
@@ -61,7 +60,7 @@ export default async function HelpPage() {
                       <AlertTitle className="text-blue-800 dark:text-blue-200">Hosted Solution Coming Soon</AlertTitle>
                       <AlertDescription className="text-blue-700 dark:text-blue-300">
                         <p className="mb-3">
-                          We're working on a hosted version of PR Cat that will eliminate the need for self-hosting. 
+                          We&apos;re working on a hosted version of PR Cat that will eliminate the need for self-hosting. 
                           In the meantime, you can deploy your own instance using our open source code.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2">
@@ -113,7 +112,7 @@ export default async function HelpPage() {
                           <div className="space-y-1">
                             <h4 className="font-semibold">Configure Categories</h4>
                             <p className="text-sm text-muted-foreground">
-                              Set up investment areas and categories that match your team's focus areas and business priorities.
+                              Set up investment areas and categories that match your team&apos;s focus areas and business priorities.
                             </p>
                           </div>
                         </div>
@@ -370,7 +369,7 @@ export default async function HelpPage() {
                             Get Support
                           </CardTitle>
                           <CardDescription>
-                            Need help? Here's how to get assistance
+                            Need help? Here&apos;s how to get assistance
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -423,7 +422,7 @@ export default async function HelpPage() {
                                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-4">
                                   <h5 className="font-semibold text-sm mb-2">Cycle Time Trends</h5>
                                   <p className="text-sm text-muted-foreground mb-2">
-                                    "Our average cycle time increased from 2.1 to 3.5 days this sprint."
+                                    &quot;Our average cycle time increased from 2.1 to 3.5 days this sprint.&quot;
                                   </p>
                                   <ul className="text-xs text-muted-foreground space-y-1">
                                     <li>• What caused the increase? Complex features or review bottlenecks?</li>
@@ -434,7 +433,7 @@ export default async function HelpPage() {
                                 <div className="rounded-lg bg-green-50 dark:bg-green-950/20 p-4">
                                   <h5 className="font-semibold text-sm mb-2">Review Coverage Insights</h5>
                                   <p className="text-sm text-muted-foreground mb-2">
-                                    "Only 67% of our PRs got reviewed before merging."
+                                    &quot;Only 67% of our PRs got reviewed before merging.&quot;
                                   </p>
                                   <ul className="text-xs text-muted-foreground space-y-1">
                                     <li>• Are we prioritizing speed over quality?</li>
@@ -447,10 +446,10 @@ export default async function HelpPage() {
                                 <div className="rounded-lg bg-purple-50 dark:bg-purple-950/20 p-4">
                                   <h5 className="font-semibold text-sm mb-2">Investment Focus</h5>
                                   <p className="text-sm text-muted-foreground mb-2">
-                                    "60% of our effort went to bug fixes vs. planned features."
+                                    &quot;60% of our effort went to bug fixes vs. planned features.&quot;
                                   </p>
                                   <ul className="text-xs text-muted-foreground space-y-1">
-                                    <li>• Is this sustainable? What's driving the bugs?</li>
+                                    <li>• Is this sustainable? What&apos;s driving the bugs?</li>
                                     <li>• Should we allocate dedicated bug-fix time?</li>
                                     <li>• How can we prevent rather than fix?</li>
                                   </ul>
@@ -458,7 +457,7 @@ export default async function HelpPage() {
                                 <div className="rounded-lg bg-orange-50 dark:bg-orange-950/20 p-4">
                                   <h5 className="font-semibold text-sm mb-2">Team Collaboration</h5>
                                   <p className="text-sm text-muted-foreground mb-2">
-                                    "Collaboration index shows knowledge silos forming."
+                                    &quot;Collaboration index shows knowledge silos forming.&quot;
                                   </p>
                                   <ul className="text-xs text-muted-foreground space-y-1">
                                     <li>• Are we spreading expertise across the team?</li>
@@ -481,16 +480,16 @@ export default async function HelpPage() {
                                 <h5 className="font-semibold text-sm mb-3">Quarterly Engineering Review Template</h5>
                                 <div className="space-y-3 text-sm">
                                   <div>
-                                    <strong>🎯 Team Velocity:</strong> "Average cycle time improved by 15% to 2.3 days, enabling faster feature delivery"
+                                    <strong>🎯 Team Velocity:</strong> &quot;Average cycle time improved by 15% to 2.3 days, enabling faster feature delivery&quot;
                                   </div>
                                   <div>
-                                    <strong>🔍 Quality Metrics:</strong> "Review coverage at 85% - hitting our quality standards while maintaining speed"
+                                    <strong>🔍 Quality Metrics:</strong> &quot;Review coverage at 85% - hitting our quality standards while maintaining speed&quot;
                                   </div>
                                   <div>
-                                    <strong>📊 Investment Allocation:</strong> "40% features, 25% technical debt, 20% infrastructure, 15% bugs - aligned with strategic goals"
+                                    <strong>📊 Investment Allocation:</strong> &quot;40% features, 25% technical debt, 20% infrastructure, 15% bugs - aligned with strategic goals&quot;
                                   </div>
                                   <div>
-                                    <strong>🤝 Team Growth:</strong> "Collaboration index shows knowledge sharing up 20% - less single points of failure"
+                                    <strong>🤝 Team Growth:</strong> &quot;Collaboration index shows knowledge sharing up 20% - less single points of failure&quot;
                                   </div>
                                 </div>
                               </div>
@@ -527,19 +526,19 @@ export default async function HelpPage() {
                                   <div className="rounded-lg border-l-4 border-blue-500 pl-4 py-2">
                                     <p className="text-sm font-medium">PR Size Coaching</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "Your recent PRs averaged 450 lines. Let's practice breaking features into smaller, reviewable chunks of ~150 lines."
+                                      &quot;Your recent PRs averaged 450 lines. Let&apos;s practice breaking features into smaller, reviewable chunks of ~150 lines.&quot;
                                     </p>
                                   </div>
                                   <div className="rounded-lg border-l-4 border-green-500 pl-4 py-2">
                                     <p className="text-sm font-medium">Review Participation</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "You've reviewed 3 PRs this week - great! Let's focus on asking questions about patterns you don't understand."
+                                      &quot;You&apos;ve reviewed 3 PRs this week - great! Let&apos;s focus on asking questions about patterns you don&apos;t understand.&quot;
                                     </p>
                                   </div>
                                   <div className="rounded-lg border-l-4 border-purple-500 pl-4 py-2">
                                     <p className="text-sm font-medium">Area Exposure</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "Your contributions are 80% frontend. Let's find opportunities to work on API endpoints next sprint."
+                                      &quot;Your contributions are 80% frontend. Let&apos;s find opportunities to work on API endpoints next sprint.&quot;
                                     </p>
                                   </div>
                                 </div>
@@ -550,19 +549,19 @@ export default async function HelpPage() {
                                   <div className="rounded-lg border-l-4 border-orange-500 pl-4 py-2">
                                     <p className="text-sm font-medium">Knowledge Sharing</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "Your reviews have great technical depth. Consider adding more 'why' explanations to help junior devs learn."
+                                      &quot;Your reviews have great technical depth. Consider adding more &apos;why&apos; explanations to help junior devs learn.&quot;
                                     </p>
                                   </div>
                                   <div className="rounded-lg border-l-4 border-red-500 pl-4 py-2">
                                     <p className="text-sm font-medium">Bottleneck Identification</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "You're reviewing 40% of team PRs. How can we distribute this knowledge and prevent single points of failure?"
+                                      &quot;You&apos;re reviewing 40% of team PRs. How can we distribute this knowledge and prevent single points of failure?&quot;
                                     </p>
                                   </div>
                                   <div className="rounded-lg border-l-4 border-teal-500 pl-4 py-2">
                                     <p className="text-sm font-medium">Strategic Impact</p>
                                     <p className="text-xs text-muted-foreground">
-                                      "Your recent focus on infrastructure (30% of time) is paying off - team cycle time improving."
+                                      &quot;Your recent focus on infrastructure (30% of time) is paying off - team cycle time improving.&quot;
                                     </p>
                                   </div>
                                 </div>
@@ -584,9 +583,9 @@ export default async function HelpPage() {
                                     Use category distribution to validate that engineering effort aligns with business priorities.
                                   </p>
                                   <div className="text-xs text-muted-foreground space-y-1">
-                                    <div>• "We planned 50% new features, but delivered 30%"</div>
-                                    <div>• "Technical debt work was 15% vs planned 25%"</div>
-                                    <div>• "Bug fixes consumed 35% - investigate root causes"</div>
+                                    <div>• &quot;We planned 50% new features, but delivered 30%&quot;</div>
+                                    <div>• &quot;Technical debt work was 15% vs planned 25%&quot;</div>
+                                    <div>• &quot;Bug fixes consumed 35% - investigate root causes&quot;</div>
                                   </div>
                                 </div>
                                 <div className="space-y-3">
@@ -614,7 +613,7 @@ export default async function HelpPage() {
                               <h5 className="font-semibold text-sm mb-3">Weekly Team Check-in Template</h5>
                               <div className="space-y-2 text-sm">
                                 <div className="flex justify-between items-center py-1 border-b">
-                                  <span>📈 <strong>What's improving?</strong></span>
+                                  <span>📈 <strong>What&apos;s improving?</strong></span>
                                   <span className="text-muted-foreground">Review cycle time, collaboration trends</span>
                                 </div>
                                 <div className="flex justify-between items-center py-1 border-b">
@@ -622,7 +621,7 @@ export default async function HelpPage() {
                                   <span className="text-muted-foreground">Large PRs, review bottlenecks, knowledge silos</span>
                                 </div>
                                 <div className="flex justify-between items-center py-1 border-b">
-                                  <span>🎯 <strong>This week's focus?</strong></span>
+                                  <span>🎯 <strong>This week&apos;s focus?</strong></span>
                                   <span className="text-muted-foreground">Specific actions based on data trends</span>
                                 </div>
                                 <div className="flex justify-between items-center py-1">

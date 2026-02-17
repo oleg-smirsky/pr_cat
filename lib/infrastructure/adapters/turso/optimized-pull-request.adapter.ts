@@ -16,9 +16,9 @@ import { query } from '@/lib/db'
 import { 
   mapPullRequestWithDetailsToSummary,
   mapPullRequestWithDetailsToDomain,
-  calculateCycleTimeHours,
   PullRequestWithDetails
 } from './mappers'
+import type { InValue } from '@libsql/client'
 
 export class OptimizedTursoPullRequestRepository implements IPullRequestRepository {
 
@@ -43,7 +43,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     // Build team filtering clauses
     let joinClause = ''
     let whereClause = 'WHERE r.organization_id = ?'
-    let params: any[] = [parseInt(organizationId)]
+    const params: InValue[] = [parseInt(organizationId)]
 
     if (teamId) {
       joinClause = `
@@ -79,7 +79,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     `, [...params, limit, offset])
 
     // Get total count for pagination (with same filters)
-    let countParams: any[] = [parseInt(organizationId)]
+    const countParams: InValue[] = [parseInt(organizationId)]
     let countWhereClause = 'WHERE r.organization_id = ?'
     let countJoinClause = ''
 
@@ -148,7 +148,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     timeRange?: TimeRange
   ): Promise<PullRequest[]> {
     let whereClause = 'WHERE r.organization_id = ?'
-    const params: any[] = [parseInt(organizationId)]
+    const params: InValue[] = [parseInt(organizationId)]
 
     if (categoryId) {
       whereClause += ' AND pr.category_id = ?'
@@ -182,10 +182,10 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
   async getCategoryDistribution(
     organizationId: string,
     timeRange?: TimeRange,
-    teamId?: number
+    _teamId?: number
   ): Promise<CategoryDistribution[]> {
     let whereClause = 'WHERE r.organization_id = ?'
-    const params: any[] = [parseInt(organizationId)]
+    const params: InValue[] = [parseInt(organizationId)]
 
     if (timeRange) {
       whereClause += ' AND pr.created_at >= ? AND pr.created_at <= ?'
@@ -241,7 +241,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     // Build team filtering clauses
     let joinClause = ''
     let whereClause = 'WHERE r.organization_id = ? AND DATE(pr.created_at) >= DATE(?) AND DATE(pr.created_at) <= DATE(?)'
-    let params: any[] = [parseInt(organizationId), startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]
+    const params: InValue[] = [parseInt(organizationId), startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]
 
     if (teamId) {
       joinClause = `
@@ -315,7 +315,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     timeRange?: TimeRange
   ): Promise<PullRequestMetrics> {
     let whereClause = 'WHERE r.organization_id = ?'
-    const params: any[] = [parseInt(organizationId)]
+    const params: InValue[] = [parseInt(organizationId)]
 
     if (timeRange) {
       whereClause += ' AND pr.created_at >= ? AND pr.created_at <= ?'
@@ -535,7 +535,7 @@ export class OptimizedTursoPullRequestRepository implements IPullRequestReposito
     }
   ): Promise<number> {
     let whereClause = 'WHERE r.organization_id = ?'
-    const params: any[] = [parseInt(organizationId)]
+    const params: InValue[] = [parseInt(organizationId)]
 
     if (filters?.state) {
       whereClause += ' AND pr.state = ?'

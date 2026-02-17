@@ -1,11 +1,14 @@
 import { createClient } from '@libsql/client';
+import type { Client, InValue } from '@libsql/client';
 
 // Lightweight connection pool for libsql client
 // Note: libsql is HTTP-based; pooling primarily helps with parallelism and keep-alive reuse
-let pool: Array<ReturnType<typeof createClient>> = [];
+let pool: Client[] = [];
 let poolInitialized = false;
 let poolNextIndex = 0;
 let isConnected = false;
+
+type QueryParams = InValue[];
 
 function initializePool() {
   if (poolInitialized) return;
@@ -55,9 +58,9 @@ export async function checkDbHealth(): Promise<boolean> {
   }
 }
 
-export async function query<T = any>(
+export async function query<T = unknown>(
   sql: string, 
-  params: any[] = []
+  params: QueryParams = []
 ): Promise<T[]> {
   const db = getDbClient();
   
@@ -76,7 +79,7 @@ export async function query<T = any>(
 
 export async function execute(
   sql: string, 
-  params: any[] = []
+  params: QueryParams = []
 ): Promise<{ lastInsertId?: number; rowsAffected: number }> {
   const db = getDbClient();
   
@@ -106,11 +109,11 @@ export async function transaction<T>(
     await db.execute({ sql: 'BEGIN TRANSACTION' });
     
     const txClient = {
-      query: async <U = any>(sql: string, params: any[] = []): Promise<U[]> => {
+      query: async <U = unknown>(sql: string, params: QueryParams = []): Promise<U[]> => {
         const result = await db.execute({ sql, args: params });
         return result.rows as U[];
       },
-      execute: async (sql: string, params: any[] = []): Promise<{ lastInsertId?: number; rowsAffected: number }> => {
+      execute: async (sql: string, params: QueryParams = []): Promise<{ lastInsertId?: number; rowsAffected: number }> => {
         const result = await db.execute({ sql, args: params });
         return {
           lastInsertId: result.lastInsertRowid ? Number(result.lastInsertRowid) : undefined,

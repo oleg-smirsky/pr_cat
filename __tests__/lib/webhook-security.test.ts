@@ -1,5 +1,4 @@
 // Unit tests for webhook security
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import {
   verifyGitHubSignature,
   checkWebhookReplay,

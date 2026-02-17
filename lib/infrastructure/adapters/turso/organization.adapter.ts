@@ -15,15 +15,14 @@ import { Category } from '../../../core/domain/value-objects'
 import { Pagination, PaginatedResult } from '../../../core/domain/value-objects'
 import { query, execute } from '@/lib/db'
 import * as OrganizationRepository from '@/lib/repositories/organization-repository'
-import * as RepositoryRepository from '@/lib/repositories/repository-repository'
 import * as CategoryRepository from '@/lib/repositories/category-repository'
 import { 
   mapDbOrganizationToDomain, 
-  mapDbUserToDomain, 
   mapDbRepositoryToDomain,
   mapDbCategoryToDomain
 } from './mappers'
 import * as DbTypes from '@/lib/types'
+import type { InValue } from '@libsql/client'
 
 export class TursoOrganizationRepository implements IOrganizationRepository {
   
@@ -156,7 +155,7 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
     try {
       const orgId = parseInt(organizationId)
       let whereClause = 'WHERE organization_id = ?'
-      const params: any[] = [orgId]
+      const params: InValue[] = [orgId]
 
       if (filters?.isTracked !== undefined) {
         whereClause += ' AND is_tracked = ?'

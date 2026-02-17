@@ -1,5 +1,4 @@
 // Integration tests for team API routes
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
 // Mock auth module
@@ -40,9 +39,9 @@ jest.mock('@/lib/repositories/team-repository', () => ({
 }));
 
 import { GET as getTeams, POST as createTeam } from '@/app/api/organizations/[orgId]/teams/route';
-import { GET as getTeam, PUT as updateTeam, DELETE as deleteTeam } from '@/app/api/organizations/[orgId]/teams/[teamId]/route';
+import { PUT as updateTeam, DELETE as deleteTeam } from '@/app/api/organizations/[orgId]/teams/[teamId]/route';
 import { POST as addMember, DELETE as removeMember } from '@/app/api/organizations/[orgId]/teams/[teamId]/members/route';
-import { mockTeam, mockUser, createMockTeams, mockOrganization } from '../fixtures';
+import { mockTeam, createMockTeams, mockOrganization } from '../fixtures';
 
 const mockSession = {
   user: {
@@ -80,7 +79,7 @@ describe('Team API Routes', () => {
       const request = new NextRequest('http://localhost:3000/api/organizations/1/teams');
       const response = await getTeams(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(200);
@@ -96,7 +95,7 @@ describe('Team API Routes', () => {
       const request = new NextRequest('http://localhost:3000/api/organizations/1/teams');
       const response = await getTeams(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(401);
@@ -111,7 +110,7 @@ describe('Team API Routes', () => {
       const request = new NextRequest('http://localhost:3000/api/organizations/1/teams');
       const response = await getTeams(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(403);
@@ -123,7 +122,7 @@ describe('Team API Routes', () => {
       const request = new NextRequest('http://localhost:3000/api/organizations/invalid/teams');
       const response = await getTeams(
         request,
-        { params: { orgId: 'invalid' } }
+        { params: Promise.resolve({ orgId: 'invalid' }) }
       );
       
       expect(response.status).toBe(400);
@@ -147,7 +146,7 @@ describe('Team API Routes', () => {
       
       const response = await createTeam(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(201);
@@ -169,7 +168,7 @@ describe('Team API Routes', () => {
       
       const response = await createTeam(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(400);
@@ -188,7 +187,7 @@ describe('Team API Routes', () => {
       
       const response = await createTeam(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(400);
@@ -207,7 +206,7 @@ describe('Team API Routes', () => {
       
       const response = await createTeam(
         request,
-        { params: { orgId: '1' } }
+        { params: Promise.resolve({ orgId: '1' }) }
       );
       
       expect(response.status).toBe(500);
@@ -228,7 +227,7 @@ describe('Team API Routes', () => {
       
       const response = await updateTeam(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(200);
@@ -250,7 +249,7 @@ describe('Team API Routes', () => {
       
       const response = await updateTeam(
         request,
-        { params: { orgId: '1', teamId: '999' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '999' }) }
       );
       
       expect(response.status).toBe(404);
@@ -272,7 +271,7 @@ describe('Team API Routes', () => {
       
       const response = await updateTeam(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(404);
@@ -287,7 +286,7 @@ describe('Team API Routes', () => {
       
       const response = await deleteTeam(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(200);
@@ -308,7 +307,7 @@ describe('Team API Routes', () => {
       
       const response = await deleteTeam(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(500);
@@ -327,7 +326,7 @@ describe('Team API Routes', () => {
       
       const response = await addMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(201);
@@ -344,7 +343,7 @@ describe('Team API Routes', () => {
 
     it('should verify user is part of organization before adding', async () => {
       const UserRepository = require('@/lib/repositories/user-repository');
-      UserRepository.getOrganizationRole.mockImplementation((userId, orgId) => {
+      UserRepository.getOrganizationRole.mockImplementation((userId: string, _orgId: string) => {
         if (userId === 'user-outside-org') return null;
         return 'admin';
       });
@@ -359,7 +358,7 @@ describe('Team API Routes', () => {
       
       const response = await addMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(400);
@@ -381,7 +380,7 @@ describe('Team API Routes', () => {
       
       const response = await addMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(400);
@@ -398,7 +397,7 @@ describe('Team API Routes', () => {
       
       const response = await removeMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(200);
@@ -416,7 +415,7 @@ describe('Team API Routes', () => {
       
       const response = await removeMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(400);
@@ -434,7 +433,7 @@ describe('Team API Routes', () => {
       
       const response = await removeMember(
         request,
-        { params: { orgId: '1', teamId: '1' } }
+        { params: Promise.resolve({ orgId: '1', teamId: '1' }) }
       );
       
       expect(response.status).toBe(404);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,28 +25,31 @@ interface Organization {
   avatar_url?: string;
 }
 
-interface OrganizationWithRepositories {
-  organization: Organization;
-  repositories: Repository[];
-}
-
 interface GitHubOrganizationRepositoriesProps {
   organizationId: number;
   organizationName: string;
+}
+
+interface RepositoriesResponse {
+  repositories?: Repository[];
+  organizationsWithRepositories?: Array<{
+    organization: Organization;
+    repositories: Repository[];
+  }>;
 }
 
 export function GitHubOrganizationRepositories({
   organizationId,
   organizationName,
 }: GitHubOrganizationRepositoriesProps) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [isSyncingSpecific, setIsSyncingSpecific] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingRepoId, setProcessingRepoId] = useState<number | null>(null);
   const [accessibleRepos, setAccessibleRepos] = useState<Set<string>>(new Set());
-  const [isLoadingAccessible, setIsLoadingAccessible] = useState(false);
+  const [, setIsLoadingAccessible] = useState(false);
 
   const fetchRepositoriesForOrganization = useCallback(async (isInitialLoad = false) => {
     if (!organizationId) {
@@ -63,11 +66,15 @@ export function GitHubOrganizationRepositories({
         const errorData = await response.json().catch(() => ({ message: "Failed to fetch repositories for " + organizationName }));
         throw new Error(errorData.message || `Failed to fetch repositories for ${organizationName}`);
       }
-      const data = await response.json();
+      const data: RepositoriesResponse = await response.json();
       if (data.repositories) {
         setRepositories(data.repositories);
       } else if (data.organizationsWithRepositories && data.organizationsWithRepositories.length > 0) {
-        const orgData = data.organizationsWithRepositories.find((o: any) => o.organization.id === organizationId || o.organization.name === organizationName);
+        const orgData = data.organizationsWithRepositories.find(
+          (orgEntry) =>
+            orgEntry.organization.id === organizationId ||
+            orgEntry.organization.name === organizationName
+        );
         setRepositories(orgData ? orgData.repositories : []);
       } else {
         setRepositories([]);
@@ -227,7 +234,7 @@ export function GitHubOrganizationRepositories({
               <IconAlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-2" /> 
               <span className="font-medium text-amber-900 dark:text-amber-100">Some repositories are not accessible</span>
             </div>
-            <p className="text-foreground">You've approved PR Cat for only selected repositories. Repositories marked "No Access" need additional permissions.</p>
+            <p className="text-foreground">You&apos;ve approved PR Cat for only selected repositories. Repositories marked &quot;No Access&quot; need additional permissions.</p>
             <a 
               href={`https://github.com/apps/pr-cat/installations/new/permissions?target_id=${organizationId}`}
               target="_blank" 
@@ -272,6 +279,15 @@ export function GitHubOrganizationRepositories({
                     size="sm" 
                         disabled={processingRepoId === repo.id || !isAccessible}
                     onClick={() => toggleWebhook(repo)}
+                        aria-label={
+                          processingRepoId === repo.id
+                            ? `Updating webhook tracking for ${repo.name}`
+                            : repo.is_tracked
+                              ? `Disable webhook tracking for ${repo.name}`
+                              : isAccessible
+                                ? `Enable webhook tracking for ${repo.name}`
+                                : `No access to ${repo.name}`
+                        }
                         className={`${repo.is_tracked ? "text-primary" : "text-muted-foreground"} ${!isAccessible ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                     {processingRepoId === repo.id ? (

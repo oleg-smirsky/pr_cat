@@ -3,11 +3,11 @@
  * Tests the DI container's ability to switch between demo and production modes
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { ServiceLocator } from '@/lib/core'
 import { EnvironmentConfig } from '@/lib/infrastructure/config'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const envConfig = EnvironmentConfig.getInstance()
     const containerStatus = ServiceLocator.getContainerStatus()

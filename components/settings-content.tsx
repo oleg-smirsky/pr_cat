@@ -25,8 +25,11 @@ interface SettingsContentProps {
 export function SettingsContent({ organizationsPromise }: SettingsContentProps) {
   // Use the React 'use' hook to resolve the promise
   const organizations = use(organizationsPromise);
+  const initialSelectedOrganization =
+    organizations.find((o) => o.hasAppInstalled) || organizations[0] || null;
   
-  const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithInstallation | null>(null);
+  const [selectedOrganization, setSelectedOrganization] =
+    useState<OrganizationWithInstallation | null>(initialSelectedOrganization);
   const [orgsState, setOrgsState] = useState<OrganizationWithInstallation[]>(organizations || []);
   const [organizationMembers, setOrganizationMembers] = useState<User[]>([]);
 
@@ -34,18 +37,15 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
     setSelectedOrganization(org);
   };
 
-  // Keep local organizations state in sync with server-provided list
-  useEffect(() => {
-    setOrgsState(organizations || []);
-  }, [organizations]);
-
-  // Auto-select first available organization (prefer one with the app installed)
-  useEffect(() => {
-    if (!selectedOrganization && orgsState && orgsState.length > 0) {
-      const preferred = orgsState.find((o) => (o as any).hasAppInstalled) || orgsState[0];
-      setSelectedOrganization(preferred);
-    }
-  }, [orgsState, selectedOrganization]);
+  const handleOrganizationsUpdated = (nextOrganizations: OrganizationWithInstallation[]) => {
+    setOrgsState(nextOrganizations);
+    setSelectedOrganization((current) => {
+      if (current && nextOrganizations.some((org) => org.id === current.id)) {
+        return current;
+      }
+      return nextOrganizations.find((org) => org.hasAppInstalled) || nextOrganizations[0] || null;
+    });
+  };
 
   // Load members when organization selection changes
   useEffect(() => {
@@ -108,7 +108,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
               organizations={orgsState}
               selectedOrganization={selectedOrganization}
               onOrganizationSelected={handleOrganizationSelected}
-              onOrganizationsUpdated={setOrgsState}
+              onOrganizationsUpdated={handleOrganizationsUpdated}
             />
 
             {selectedOrganization && selectedOrganization.hasAppInstalled && (
@@ -126,7 +126,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Please install the GitHub App for "{selectedOrganization.name}" to configure its repositories.
+                    Please install the GitHub App for &quot;{selectedOrganization.name}&quot; to configure its repositories.
                   </p>
                 </CardContent>
               </Card>

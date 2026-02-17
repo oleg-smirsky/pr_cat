@@ -26,13 +26,19 @@ export function errorResponse(error: unknown, fallbackMessage = 'Internal Server
     error !== null &&
     'message' in error &&
     'name' in error &&
-    // @ts-expect-error runtime duck-typing
-    (error.name === 'TeamServiceError' || typeof error.statusCode === 'number')
+    (error.name === 'TeamServiceError' || ('statusCode' in error && typeof error.statusCode === 'number'))
   ) {
-    const anyErr = error as any;
-    const status = typeof anyErr.statusCode === 'number' ? anyErr.statusCode : 500;
+    const typedError = error as {
+      statusCode?: unknown;
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+    };
+    const status = typeof typedError.statusCode === 'number' ? typedError.statusCode : 500;
+    const message = typeof typedError.message === 'string' ? typedError.message : fallbackMessage;
+    const code = typeof typedError.code === 'string' ? typedError.code : undefined;
     return NextResponse.json(
-      { error: String(anyErr.message || fallbackMessage), code: anyErr.code, details: anyErr.details },
+      { error: message, code, details: typedError.details },
       { status }
     );
   }
@@ -67,4 +73,3 @@ export function notFound(message = 'Not Found') {
 export function conflict(message = 'Conflict', details?: unknown) {
   return new ApiError(409, message, details, 'CONFLICT');
 }
-

@@ -31,7 +31,7 @@ import {
 interface TeamDashboardControlsProps {
   title?: string;
   description?: string;
-  showOrganizationSelector?: boolean;
+  organizationSelectorMode?: "auto" | "always" | "hidden";
   className?: string;
 }
 
@@ -46,7 +46,7 @@ const timeRangeOptions = [
 export function TeamDashboardControls({
   title = "Team Dashboard",
   description = "View team performance and retrospective data",
-  showOrganizationSelector = true,
+  organizationSelectorMode = "auto",
   className = "",
 }: TeamDashboardControlsProps) {
   const {
@@ -94,6 +94,9 @@ export function TeamDashboardControls({
 
   const selectedTimeRange = timeRangeOptions.find(option => option.value === timeRange);
   const teamInfo = getTeamDisplayInfo();
+  const shouldShowOrganizationSelector =
+    organizationSelectorMode === "always" ||
+    (organizationSelectorMode === "auto" && organizations.length > 1);
 
   if (loading && !organizations.length) {
     return (
@@ -169,7 +172,7 @@ export function TeamDashboardControls({
       <CardContent>
         <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 md:items-end">
           {/* Organization Selector */}
-          {showOrganizationSelector && organizations.length > 1 && (
+          {shouldShowOrganizationSelector && (
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-1">
                 <IconBuilding className="h-4 w-4" />

@@ -1,13 +1,30 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React from "react"
 import { motion, Variants } from "framer-motion"
 import { cn } from "@/lib/utils"
+
+const motionElements = {
+  article: motion.article,
+  div: motion.div,
+  footer: motion.footer,
+  header: motion.header,
+  li: motion.li,
+  main: motion.main,
+  nav: motion.nav,
+  ol: motion.ol,
+  p: motion.p,
+  section: motion.section,
+  span: motion.span,
+  ul: motion.ul,
+} as const
+
+type MotionElementTag = keyof typeof motionElements
 
 interface TextEffectProps {
   children: string
   per?: "word" | "char" | "line"
-  as?: keyof React.JSX.IntrinsicElements
+  as?: MotionElementTag
   variants?: Variants
   className?: string
   preset?: "fade-in-blur" | "slide-up" | "scale-in"
@@ -60,13 +77,7 @@ export function TextEffect({
   speedSegment = 0.1,
   delay = 0,
 }: TextEffectProps) {
-  const [isMounted, setIsMounted] = useState(false)
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  const MotionComponent = motion(Component)
+  const MotionComponent = motionElements[Component] || motion.div
   const selectedVariants = variants || presets[preset]
 
   if (per === "line") {
@@ -76,7 +87,7 @@ export function TextEffect({
       <MotionComponent
         className={cn(className)}
         initial="hidden"
-        animate={isMounted ? "visible" : "hidden"}
+        animate="visible"
         transition={{
           staggerChildren: speedSegment,
           delayChildren: delay,
@@ -112,7 +123,7 @@ export function TextEffect({
       <MotionComponent
         className={cn(className)}
         initial="hidden"
-        animate={isMounted ? "visible" : "hidden"}
+        animate="visible"
         transition={{
           staggerChildren: speedSegment,
           delayChildren: delay,
@@ -148,7 +159,7 @@ export function TextEffect({
       <MotionComponent
         className={cn(className)}
         initial="hidden"
-        animate={isMounted ? "visible" : "hidden"}
+        animate="visible"
         transition={{
           staggerChildren: speedSegment,
           delayChildren: delay,
@@ -181,7 +192,7 @@ export function TextEffect({
     <MotionComponent
       className={cn(className)}
       initial="hidden"
-      animate={isMounted ? "visible" : "hidden"}
+      animate="visible"
       variants={{
         hidden: selectedVariants.hidden,
         visible: {

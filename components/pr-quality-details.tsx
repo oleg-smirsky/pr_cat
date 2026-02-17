@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from "recharts";
-import { IconCheck, IconX, IconAlertTriangle } from "@tabler/icons-react";
+import { IconCheck, IconAlertTriangle } from "@tabler/icons-react";
 
 type PullRequest = {
   id: number;
@@ -239,6 +239,20 @@ export function PRQualityDetails() {
       { name: "X-Large (1000+ LOC)", value: qualityData.sizeDistribution.xlarge, color: "#ef4444" },
     ];
   };
+
+  if (error) {
+    return (
+      <Card className="mx-4 lg:mx-6">
+        <CardHeader>
+          <CardTitle>PR Quality Analysis</CardTitle>
+          <CardDescription>Failed to load quality data</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">{error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading || !qualityData) {
     return (

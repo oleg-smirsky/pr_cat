@@ -1,5 +1,6 @@
-import { query, execute, transaction } from '@/lib/db';
+import { query, execute } from '@/lib/db';
 import { User, Organization, UserOrganization } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 
 export async function findUserById(id: string): Promise<User | null> {
   console.log('Finding user by ID:', id);
@@ -58,7 +59,7 @@ export async function createUser(user: {
 
 export async function updateUser(id: string, data: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>): Promise<User | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -159,7 +160,12 @@ export async function findOrCreateUserByGitHubId(userData: {
  * Optimized function to get user with their organizations in a single query
  * This reduces the number of database calls from 2+ to 1
  */
-export async function findUserWithOrganizations(userId: string) {
+export async function findUserWithOrganizations(
+  userId: string
+): Promise<{
+  user: User;
+  organizations: Array<Organization & { role: UserOrganization['role'] }>;
+} | null> {
   const results = await query<{
     user_id: string;
     user_name: string | null;
@@ -174,7 +180,7 @@ export async function findUserWithOrganizations(userId: string) {
     org_installation_id: number | null;
     org_created_at: string | null;
     org_updated_at: string | null;
-    role: string | null;
+    role: UserOrganization['role'] | null;
   }>(`
     SELECT 
       u.id as user_id,
@@ -214,19 +220,35 @@ export async function findUserWithOrganizations(userId: string) {
 
   // Extract unique organizations
   const organizations = results
-    .filter(row => row.org_id !== null) // Filter out users with no organizations
-    .reduce((acc: any[], row) => {
+    .filter(
+      (
+        row
+      ): row is typeof row & {
+        org_id: number;
+        org_name: string;
+        org_github_id: number;
+        org_created_at: string;
+        org_updated_at: string;
+      } =>
+        row.org_id !== null &&
+        row.org_name !== null &&
+        row.org_github_id !== null &&
+        row.org_created_at !== null &&
+        row.org_updated_at !== null
+    )
+    .reduce<Array<Organization & { role: UserOrganization['role'] }>>((acc, row) => {
       // Avoid duplicates
       if (!acc.find(org => org.id === row.org_id)) {
+        const role: UserOrganization['role'] = row.role ?? 'member';
         acc.push({
-          id: row.org_id!,
-          name: row.org_name!,
+          id: row.org_id,
+          name: row.org_name,
           github_id: row.org_github_id,
           avatar_url: row.org_avatar_url,
           installation_id: row.org_installation_id,
-          created_at: row.org_created_at!,
-          updated_at: row.org_updated_at!,
-          role: row.role!
+          created_at: row.org_created_at,
+          updated_at: row.org_updated_at,
+          role
         });
       }
       return acc;

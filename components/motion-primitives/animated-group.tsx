@@ -1,14 +1,31 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React from "react"
 import { motion, Variants } from "framer-motion"
 import { cn } from "@/lib/utils"
 
+const motionElements = {
+  article: motion.article,
+  div: motion.div,
+  footer: motion.footer,
+  header: motion.header,
+  li: motion.li,
+  main: motion.main,
+  nav: motion.nav,
+  ol: motion.ol,
+  p: motion.p,
+  section: motion.section,
+  span: motion.span,
+  ul: motion.ul,
+} as const
+
+type MotionElementTag = keyof typeof motionElements
+
 interface AnimatedGroupProps {
   children: React.ReactNode
-  variants?: any // Allow more flexible variant structure
+  variants?: Variants
   className?: string
-  as?: keyof React.JSX.IntrinsicElements
+  as?: MotionElementTag
   delay?: number
 }
 
@@ -19,13 +36,7 @@ export function AnimatedGroup({
   as: Component = "div",
   delay = 0,
 }: AnimatedGroupProps) {
-  const [isMounted, setIsMounted] = useState(false)
-
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  const MotionComponent = motion(Component)
+  const MotionComponent = motionElements[Component] || motion.div
 
   const defaultVariants = {
     hidden: {
@@ -47,7 +58,7 @@ export function AnimatedGroup({
       className={cn(className)}
       variants={finalVariants}
       initial="hidden"
-      animate={isMounted ? "visible" : "hidden"}
+      animate="visible"
     >
       {children}
     </MotionComponent>

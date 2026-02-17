@@ -76,7 +76,7 @@ export function ChartAreaEngineering({ initialChartData = defaultChartData }: Ch
   const isMobile = useIsMobile()
   const [timeRange, setTimeRange] = React.useState("30d")
   // Initialize state with server-fetched data or default values
-  const [chartData, setChartData] = React.useState<TimeSeriesDataPoint[]>(initialChartData);
+  const chartData = initialChartData;
   const [metrics, setMetrics] = React.useState<string[]>(["prThroughput", "cycleTime", "codingHours"]);
 
   // No need for loading state or data fetching useEffect

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "updatedAt": "2026-02-16",
+  "readingOrder": [
+    "docs/architecture/README.md",
+    "docs/architecture/migration-status.md",
+    "docs/playbooks/change-routing.md"
+  ],
+  "entrypoints": [
+    "README.md",
+    "AGENTS.md",
+    "docs/README.md",
+    "docs/architecture/README.md"
+  ],
+  "modules": [
+    {
+      "id": "next-app",
+      "path": "app",
+      "purpose": "Next.js pages, layouts, and API route handlers.",
+      "owners": [
+        "platform"
+      ],
+      "status": "active",
+      "dependsOn": [
+        "core",
+        "legacy-services"
+      ]
+    },
+    {
+      "id": "ui-components",
+      "path": "components",
+      "purpose": "Reusable React components and design system primitives.",
+      "owners": [
+        "frontend"
+      ],
+      "status": "active",
+      "dependsOn": []
+    },
+    {
+      "id": "core",
+      "path": "lib/core",
+      "purpose": "Domain, ports, application middleware, and dependency container.",
+      "owners": [
+        "platform"
+      ],
+      "status": "active",
+      "dependsOn": []
+    },
+    {
+      "id": "infrastructure",
+      "path": "lib/infrastructure",
+      "purpose": "Adapter implementations for demo, Turso, and GitHub integrations.",
+      "owners": [
+        "platform"
+      ],
+      "status": "active",
+      "dependsOn": [
+        "core",
+        "legacy-services"
+      ]
+    },
+    {
+      "id": "legacy-services",
+      "path": "lib/services",
+      "purpose": "Legacy business services still used by selected routes.",
+      "owners": [
+        "platform"
+      ],
+      "status": "migration",
+      "dependsOn": [
+        "legacy-repositories"
+      ]
+    },
+    {
+      "id": "legacy-repositories",
+      "path": "lib/repositories",
+      "purpose": "Legacy persistence and query functions.",
+      "owners": [
+        "platform"
+      ],
+      "status": "migration",
+      "dependsOn": []
+    },
+    {
+      "id": "tests",
+      "path": "__tests__",
+      "purpose": "Unit and API route behavior tests.",
+      "owners": [
+        "platform"
+      ],
+      "status": "active",
+      "dependsOn": [
+        "core",
+        "infrastructure",
+        "legacy-services",
+        "legacy-repositories"
+      ]
+    }
+  ]
+}
+

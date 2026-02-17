@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "core-domain-pure",
+      "description": "Domain layer remains framework-agnostic and independent from adapters and legacy services.",
+      "include": [
+        "lib/core/domain"
+      ],
+      "forbidPrefixes": [
+        "@/lib/infrastructure",
+        "@/lib/repositories",
+        "@/lib/services",
+        "@/app",
+        "@/components",
+        "next/",
+        "react"
+      ]
+    },
+    {
+      "id": "core-ports-no-legacy",
+      "description": "Port interfaces cannot depend on adapters or legacy service/repository layers.",
+      "include": [
+        "lib/core/ports"
+      ],
+      "forbidPrefixes": [
+        "@/lib/infrastructure/adapters",
+        "@/lib/repositories",
+        "@/lib/services"
+      ]
+    },
+    {
+      "id": "preferred-routes-via-core",
+      "description": "Stable route groups should access behavior through the core facade, not legacy direct imports.",
+      "include": [
+        "app/api/metrics",
+        "app/api/pull-requests",
+        "app/api/organizations/route.ts",
+        "app/api/repositories/route.ts"
+      ],
+      "forbidPrefixes": [
+        "@/lib/repositories",
+        "@/lib/services"
+      ]
+    }
+  ]
+}
+

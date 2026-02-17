@@ -26,6 +26,7 @@ export function DemoModeBanner({ className }: DemoModeBannerProps) {
         <Link 
           href="https://github.com/vorcigernix/pr_cat#environment-setup"
           target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors duration-200"
         >
           <span>Connect GitHub</span>
@@ -44,6 +45,7 @@ export function DemoModeBanner({ className }: DemoModeBannerProps) {
         
         <button
           onClick={() => setIsVisible(false)}
+          aria-label="Dismiss demo mode banner"
           className="ml-1 mr-2 p-1 rounded-full hover:bg-[#1f1f1f] transition-colors duration-200"
         >
           <X className="w-3 h-3 text-gray-400 hover:text-gray-300" />

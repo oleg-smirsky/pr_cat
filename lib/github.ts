@@ -20,6 +20,26 @@ interface RepositoryWebhook {
   events: string[];
 }
 
+function getErrorStatus(error: unknown): number | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof error.status === 'number'
+    ? error.status
+    : undefined;
+}
+
+function getErrorMessage(error: unknown): string | undefined {
+  return error instanceof Error
+    ? error.message
+    : typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof error.message === 'string'
+      ? error.message
+      : undefined;
+}
+
 export class GitHubClient {
   private octokit: Octokit;
   private token: string;
@@ -53,19 +73,21 @@ export class GitHubClient {
     try {
       // Try the API call first
       return await apiCall();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorStatus = getErrorStatus(error);
+      const errorMessage = getErrorMessage(error);
       // Check if the error is related to authentication
       if (
         this.installationId && // Only try refresh for installation tokens
-        (error.status === 401 || // Unauthorized
-         error.status === 403 || // Forbidden
-         (error.message && typeof error.message === 'string' && 
-          (error.message.includes('token expired') || 
-           error.message.includes('Bad credentials') || 
-           error.message.includes('authorization')))
+        (errorStatus === 401 || // Unauthorized
+         errorStatus === 403 || // Forbidden
+         (errorMessage &&
+          (errorMessage.includes('token expired') || 
+           errorMessage.includes('Bad credentials') || 
+           errorMessage.includes('authorization')))
         )
       ) {
-        console.warn(`GitHub API token error (possibly expired): ${error.message || error.status}. Clearing token from cache.`);
+        console.warn(`GitHub API token error (possibly expired): ${errorMessage || errorStatus}. Clearing token from cache.`);
         
         // Clear the token from cache to force refresh on next request
         if (this.installationId) {
@@ -159,9 +181,11 @@ export class GitHubClient {
           per_page: 1
         });
         return true; // Repository is accessible with webhook permissions
-      } catch (error: any) {
-        if (error.status === 404 || error.status === 403) {
-          console.log(`Repository ${owner}/${repo} is not accessible for webhooks: ${error.message}`);
+      } catch (error: unknown) {
+        const errorStatus = getErrorStatus(error);
+        const errorMessage = getErrorMessage(error);
+        if (errorStatus === 404 || errorStatus === 403) {
+          console.log(`Repository ${owner}/${repo} is not accessible for webhooks: ${errorMessage || 'Unknown error'}`);
           return false; // No admin access
         }
         throw error; // Other errors should be handled by caller

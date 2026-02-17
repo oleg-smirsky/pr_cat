@@ -8,7 +8,6 @@ import { ServiceLocator } from '../container'
 import { 
   ApplicationContext, 
   RequestContext,
-  AnonymousContext,
   createApplicationContext,
   createAnonymousContext,
   UserPermissions
@@ -29,7 +28,7 @@ export function withAuth<TRequest = NextRequest, TResponse = NextResponse>(
 ): (request: TRequest) => Promise<TResponse | NextResponse> {
   return async (request: TRequest) => {
     try {
-      const context = await createAuthenticatedContext(request)
+      const context = await createAuthenticatedContext()
       
       if (!context) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -51,7 +50,7 @@ export function withOptionalAuth<TRequest = NextRequest, TResponse = NextRespons
 ): (request: TRequest) => Promise<TResponse> {
   return async (request: TRequest) => {
     try {
-      const context = await createRequestContext(request)
+      const context = await createRequestContext()
       return await handler(context, request)
     } catch (error) {
       console.error('Optional auth middleware error:', error)
@@ -64,7 +63,7 @@ export function withOptionalAuth<TRequest = NextRequest, TResponse = NextRespons
 /**
  * Create authenticated context or return null if not authenticated
  */
-async function createAuthenticatedContext(request: unknown): Promise<ApplicationContext | null> {
+async function createAuthenticatedContext(): Promise<ApplicationContext | null> {
   try {
     const authService = await ServiceLocator.getAuthService()
     const session = await authService.getSession()
@@ -97,8 +96,8 @@ async function createAuthenticatedContext(request: unknown): Promise<Application
 /**
  * Create request context (authenticated or anonymous)
  */
-async function createRequestContext(request: unknown): Promise<RequestContext> {
-  const authenticatedContext = await createAuthenticatedContext(request)
+async function createRequestContext(): Promise<RequestContext> {
+  const authenticatedContext = await createAuthenticatedContext()
   
   if (authenticatedContext) {
     return authenticatedContext

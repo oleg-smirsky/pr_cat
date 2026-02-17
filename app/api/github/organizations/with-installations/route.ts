@@ -3,8 +3,13 @@ import { auth } from '@/auth';
 import { getUserWithOrganizations } from '@/lib/auth-context';
 import { generateAppJwt } from '@/lib/github-app';
 import { Octokit } from '@octokit/rest';
+import type { Organization } from '@/lib/types';
 
 export const runtime = 'nodejs';
+
+type OrganizationWithRole = Organization & {
+  role?: string;
+};
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -21,7 +26,7 @@ export async function GET(request: NextRequest) {
     const appOctokit = new Octokit({ auth: appJwt });
     const { data: installationsData } = await appOctokit.apps.listInstallations();
 
-    const enriched = organizations.map((org: any) => {
+    const enriched = organizations.map((org: OrganizationWithRole) => {
       const installation = installationsData.find(
         (install) => install.account && install.account.login.toLowerCase() === org.name.toLowerCase()
       );
@@ -41,5 +46,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 

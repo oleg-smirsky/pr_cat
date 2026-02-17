@@ -8,17 +8,11 @@
 
 import {
   findTeamById,
-  findTeamsByOrganization,
   findTeamsByOrganizationWithMembers,
   createTeam,
   updateTeam,
-  deleteTeam,
   addTeamMember,
-  updateTeamMember,
-  removeTeamMember,
   getTeamWithMembers,
-  getTeamMembers,
-  findTeamMember,
   getOrganizationRole,
 } from '@/lib/repositories';
 import { Team, TeamMember, TeamWithMembers } from '@/lib/types';
@@ -148,7 +142,7 @@ export class TeamService {
       throw new TeamServiceError('Invalid color format. Use hex format like #FF0000', 'INVALID_COLOR');
     }
 
-    const updateData: any = {};
+    const updateData: Partial<Omit<Team, 'id' | 'organization_id' | 'created_at' | 'updated_at'>> = {};
     if (request.name !== undefined) updateData.name = request.name.trim();
     if (request.description !== undefined) updateData.description = request.description;
     if (request.color !== undefined) updateData.color = request.color;

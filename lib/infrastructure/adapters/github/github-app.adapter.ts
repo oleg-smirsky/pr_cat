@@ -4,15 +4,12 @@
  */
 
 import jwt from 'jsonwebtoken'
-import { IGitHubAppService, InstallationInfo, InstallationToken } from '../../../core/ports/github-app.port'
+import { IGitHubAppService, InstallationInfo } from '../../../core/ports/github-app.port'
 import { Organization } from '../../../core/domain/entities/organization'
 import { Repository } from '../../../core/domain/entities/repository'
 import { GitHubClient } from '../../../github'
 import { 
-  findOrCreateOrganization,
-  findOrCreateRepository,
-  findOrganizationById,
-  findRepositoryByGitHubId
+  findOrCreateRepository
 } from '../../../repositories'
 import * as OrganizationRepository from '../../../repositories/organization-repository'
 
@@ -21,6 +18,35 @@ interface CachedToken {
   token: string
   expiresAt: number // Unix timestamp in ms when token expires
   permissions: Record<string, string>
+}
+
+interface GitHubInstallationAccount {
+  id: number
+  login: string
+  type: 'Organization' | 'User'
+  avatar_url?: string | null
+}
+
+interface GitHubAppInstallationPayload {
+  id: number
+  account: GitHubInstallationAccount | null
+  permissions?: Record<string, string>
+  repository_selection?: 'all' | 'selected'
+  repository_count?: number | null
+  suspended_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface DbOrganizationRecord {
+  id: number
+  name: string
+  avatar_url?: string | null
+  installation_id?: number | null
+  created_at?: string
+  updated_at?: string
+  display_name?: string | null
+  description?: string | null
 }
 
 // In-memory cache for installation tokens
@@ -122,22 +148,8 @@ export class GitHubAppService implements IGitHubAppService {
       })
       
       const installation = response.data
-      
-      return {
-        id: installation.id,
-        account: {
-          id: installation.account!.id,
-          login: (installation.account as any).login,
-          type: (installation.account as any).type as 'Organization' | 'User',
-          avatarUrl: installation.account!.avatar_url || undefined
-        },
-        permissions: (installation as any).permissions || {},
-        repositorySelection: (installation as any).repository_selection as 'all' | 'selected',
-        repositoryCount: (installation as any).repository_count || undefined,
-        suspendedAt: (installation as any).suspended_at ? new Date((installation as any).suspended_at) : null,
-        createdAt: new Date(installation.created_at),
-        updatedAt: new Date(installation.updated_at)
-      }
+
+      return this.mapInstallationToInfo(installation as unknown as GitHubAppInstallationPayload)
     } catch (error) {
       console.error(`[GitHubApp] Error getting installation ${installationId}:`, error)
       throw new Error('Failed to get installation: ' + (error instanceof Error ? error.message : 'Unknown error'))
@@ -154,21 +166,9 @@ export class GitHubAppService implements IGitHubAppService {
       
       const response = await appClient.octokitClient.apps.listInstallations()
       
-      return response.data.map(installation => ({
-        id: installation.id,
-        account: {
-          id: installation.account!.id,
-          login: (installation.account as any).login,
-          type: (installation.account as any).type as 'Organization' | 'User',
-          avatarUrl: installation.account!.avatar_url || undefined
-        },
-        permissions: (installation as any).permissions || {},
-        repositorySelection: (installation as any).repository_selection as 'all' | 'selected',
-        repositoryCount: (installation as any).repository_count || undefined,
-        suspendedAt: (installation as any).suspended_at ? new Date((installation as any).suspended_at) : null,
-        createdAt: new Date(installation.created_at),
-        updatedAt: new Date(installation.updated_at)
-      }))
+      return response.data.map(installation =>
+        this.mapInstallationToInfo(installation as unknown as GitHubAppInstallationPayload)
+      )
     } catch (error) {
       console.error('[GitHubApp] Error listing installations:', error)
       throw new Error('Failed to list installations: ' + (error instanceof Error ? error.message : 'Unknown error'))
@@ -386,7 +386,7 @@ export class GitHubAppService implements IGitHubAppService {
       // Validate private key format
       try {
         await this.generateAppJWT()
-      } catch (error) {
+      } catch {
         errors.push('Invalid GitHub App private key format')
       }
     }
@@ -402,7 +402,7 @@ export class GitHubAppService implements IGitHubAppService {
   /**
    * Helper method to map database organization to domain entity
    */
-  private mapDbOrgToDomain(dbOrg: any): Organization {
+  private mapDbOrgToDomain(dbOrg: DbOrganizationRecord): Organization {
     return {
       id: dbOrg.id.toString(),
       login: dbOrg.name, // GitHub login name
@@ -415,6 +415,29 @@ export class GitHubAppService implements IGitHubAppService {
       installationId: dbOrg.installation_id?.toString() || null,
       createdAt: new Date(dbOrg.created_at || Date.now()),
       updatedAt: new Date(dbOrg.updated_at || Date.now())
+    }
+  }
+
+  private mapInstallationToInfo(installation: GitHubAppInstallationPayload): InstallationInfo {
+    const account = installation.account
+    if (!account) {
+      throw new Error('Installation account payload is missing')
+    }
+
+    return {
+      id: installation.id,
+      account: {
+        id: account.id,
+        login: account.login,
+        type: account.type,
+        avatarUrl: account.avatar_url || undefined
+      },
+      permissions: installation.permissions || {},
+      repositorySelection: installation.repository_selection || 'all',
+      repositoryCount: installation.repository_count || undefined,
+      suspendedAt: installation.suspended_at ? new Date(installation.suspended_at) : null,
+      createdAt: new Date(installation.created_at),
+      updatedAt: new Date(installation.updated_at)
     }
   }
 }

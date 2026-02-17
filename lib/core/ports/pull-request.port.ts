@@ -12,7 +12,7 @@ import {
   CategoryDistribution, 
   CategoryTimeSeriesData 
 } from '../domain/entities/metrics'
-import { TimeRange, TimeRangeFilter } from '../domain/value-objects/time-range'
+import { TimeRange } from '../domain/value-objects/time-range'
 import { Pagination, PaginatedResult } from '../domain/value-objects/pagination'
 
 export interface IPullRequestRepository {

@@ -31,7 +31,7 @@ export class DemoOrganizationRepository implements IOrganizationRepository {
   }
 
   async getUserOrganizationsWithRole(
-    userId: string
+    _userId: string
   ): Promise<Array<Organization & { role: 'admin' | 'member' }>> {
     // In demo mode, return all organizations with roles
     return DEMO_ORGANIZATIONS.map((org, index) => ({
@@ -126,7 +126,7 @@ export class DemoOrganizationRepository implements IOrganizationRepository {
     }
   }
 
-  async getCategories(organizationId: string): Promise<Category[]> {
+  async getCategories(_organizationId: string): Promise<Category[]> {
     return DEMO_CATEGORIES.map(cat => 
       Category.create(cat.id, cat.name, cat.description, cat.color)
     )

@@ -1,5 +1,6 @@
 import { query, execute } from '@/lib/db';
 import { Category } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 
 export async function findCategoryById(id: number): Promise<Category | null> {
   const categories = await query<Category>('SELECT * FROM categories WHERE id = ?', [id]);
@@ -46,7 +47,7 @@ export async function updateCategory(
   data: Partial<Omit<Category, 'id' | 'created_at' | 'updated_at'>>
 ): Promise<Category | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {

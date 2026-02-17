@@ -10,7 +10,7 @@ export function CTASection() {
       <div className="container max-w-6xl mx-auto px-4 text-center">
         <h2 className="text-3xl font-bold tracking-tight mb-4">Ready to deploy your own engineering analytics?</h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          Join development teams that trust open source. Deploy PR Cat on your infrastructure and start gaining insights into your team's workflow.
+          Join development teams that trust open source. Deploy PR Cat on your infrastructure and start gaining insights into your team&apos;s workflow.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <div className="relative inline-block w-fit">

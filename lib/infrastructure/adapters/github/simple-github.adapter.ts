@@ -60,11 +60,23 @@ export class SimpleGitHubAPIService implements IGitHubService {
     return this.demoFallback.getPullRequest(owner, repo, pullNumber)
   }
 
-  async getPullRequestReviews(owner: string, repo: string, pullNumber: number): Promise<Array<any>> {
+  async getPullRequestReviews(
+    owner: string,
+    repo: string,
+    pullNumber: number
+  ): Promise<Array<{
+    id: string
+    user: User
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED'
+    body: string
+    submittedAt: Date
+  }>> {
     return this.demoFallback.getPullRequestReviews(owner, repo, pullNumber)
   }
 
-  async syncOrganizationRepositories(orgLogin: string): Promise<{ synced: Repository[]; errors: Array<any> }> {
+  async syncOrganizationRepositories(
+    orgLogin: string
+  ): Promise<{ synced: Repository[]; errors: Array<{ repo: string; error: string }> }> {
     return this.demoFallback.syncOrganizationRepositories(orgLogin)
   }
 
@@ -80,7 +92,10 @@ export class SimpleGitHubAPIService implements IGitHubService {
     return this.demoFallback.validateWebhookSignature(payload, signature, secret)
   }
 
-  async processWebhookEvent(event: string, payload: any): Promise<{ processed: boolean; actions: string[]; errors?: string[] }> {
+  async processWebhookEvent(
+    event: string,
+    payload: unknown
+  ): Promise<{ processed: boolean; actions: string[]; errors?: string[] }> {
     return this.demoFallback.processWebhookEvent(event, payload)
   }
 }

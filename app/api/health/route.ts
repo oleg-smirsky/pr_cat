@@ -25,7 +25,7 @@ export async function GET() {
     try {
       const session = await auth();
       authStatus = session ? 'authenticated' : 'not_authenticated';
-    } catch (error) {
+    } catch {
       authStatus = 'error';
     }
 

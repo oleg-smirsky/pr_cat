@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ServiceLocator, withAuth, ApplicationContext } from '@/lib/core';
+import { withAuth, ApplicationContext } from '@/lib/core';
 import { TeamService } from '@/lib/services';
-import { unauthorized, badRequest, notFound, errorResponse } from '@/lib/api-errors';
+import { badRequest, notFound, errorResponse } from '@/lib/api-errors';
 import { z } from 'zod';
 
 export const runtime = 'nodejs';
@@ -179,7 +179,7 @@ export async function PUT(
 // Team deletion handler
 const deleteTeamHandler = async (
   context: ApplicationContext,
-  request: NextRequest,
+  _request: NextRequest,
   params: { orgId: string; teamId: string }
 ): Promise<NextResponse> => {
   try {

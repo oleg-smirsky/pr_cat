@@ -4,8 +4,13 @@ import { auth } from '@/auth';
 import { findUserWithOrganizations } from '@/lib/repositories/user-repository';
 import { generateAppJwt } from '@/lib/github-app';
 import { Octokit } from '@octokit/rest';
+import type { Organization } from '@/lib/types';
 
 // This file is for server components only - it uses next/headers
+
+type OrganizationWithRole = Organization & {
+  role?: string;
+};
 
 // Get base URL for server-side API calls
 function getBaseUrl() {
@@ -59,7 +64,7 @@ export async function getOrganizationInstallations(): Promise<OrganizationWithIn
       console.log(`getOrganizationInstallations: Found ${installationsData.length} app installations`);
       
       // Map database organizations with GitHub App installation status
-      const enriched = result.organizations.map((org: any) => {
+      const enriched = result.organizations.map((org: OrganizationWithRole) => {
         const installation = installationsData.find(
           (install) => install.account && install.account.login.toLowerCase() === org.name.toLowerCase()
         );
@@ -79,7 +84,7 @@ export async function getOrganizationInstallations(): Promise<OrganizationWithIn
     } catch (appError) {
       console.error('getOrganizationInstallations: Error fetching GitHub App installations:', appError);
       // Return organizations without installation status if GitHub App API fails
-      return result.organizations.map((org: any) => ({
+      return result.organizations.map((org: OrganizationWithRole) => ({
         ...org,
         hasAppInstalled: false,
         installationId: null,

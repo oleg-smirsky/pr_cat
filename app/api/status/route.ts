@@ -33,7 +33,7 @@ export async function GET() {
       dbVersion = result[0]?.version || 0;
       
       // Check if users table exists
-      await query('SELECT 1 FROM users LIMIT 1');
+      await query<Record<string, unknown>>('SELECT 1 FROM users LIMIT 1');
       tablesExist = true;
     } catch (dbError) {
       console.warn('Database table check failed:', dbError);

@@ -149,6 +149,21 @@ The application uses Next.js 15 with the App Router and is structured as follows
   - `github.ts`: GitHub API client
   - `types.ts`: TypeScript type definitions
 
+## Architecture Harness
+
+This repository includes an orientation harness for contributors and coding agents:
+
+- Start here: `docs/README.md`
+- Architecture map: `docs/architecture/README.md`
+- Migration status (core vs legacy paths): `docs/architecture/migration-status.md`
+- Route change playbook: `docs/playbooks/change-routing.md`
+
+Run architecture validation:
+
+```bash
+pnpm architecture:check
+```
+
 ## Deployment
 
 The application is designed to be deployed on Vercel:

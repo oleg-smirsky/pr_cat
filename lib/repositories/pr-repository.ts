@@ -1,5 +1,6 @@
-import { query, execute, transaction } from '@/lib/db';
+import { query, execute } from '@/lib/db';
 import { PullRequest, PRReview } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 
 export async function findPullRequestById(id: number): Promise<PullRequest | null> {
   const prs = await query<PullRequest>('SELECT * FROM pull_requests WHERE id = ?', [id]);
@@ -66,7 +67,7 @@ export async function updatePullRequest(
   data: Partial<Omit<PullRequest, 'id' | 'github_id' | 'repository_id' | 'number' | 'embedding_id'>>
 ): Promise<PullRequest | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -124,7 +125,7 @@ export async function getRepositoryPullRequests(
   } = options;
   
   let queryString = 'SELECT * FROM pull_requests WHERE repository_id = ?';
-  const params: any[] = [repositoryId];
+  const params: InValue[] = [repositoryId];
   
   if (state !== 'all') {
     queryString += ' AND state = ?';
@@ -164,7 +165,7 @@ export async function getOrganizationPullRequests(
     WHERE r.organization_id = ?
   `;
   
-  const params: any[] = [organizationId];
+  const params: InValue[] = [organizationId];
   
   if (state !== 'all') {
     sql += ' AND pr.state = ?';
@@ -223,7 +224,7 @@ export async function findReviewByGitHubId(githubId: number): Promise<PRReview |
 
 export async function updatePullRequestReview(id: number, data: Partial<PRReview>): Promise<PRReview | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -262,7 +263,7 @@ export async function getPullRequestCountByCategory(organizationId: number, time
     WHERE r.organization_id = ?
   `;
   
-  const params: any[] = [organizationId];
+  const params: InValue[] = [organizationId];
   
   if (timeRange) {
     sql += ' AND pr.created_at >= ? AND pr.created_at <= ?';
@@ -291,7 +292,7 @@ export async function getAveragePullRequestSize(organizationId: number, timeRang
     AND pr.changed_files IS NOT NULL
   `;
   
-  const params: any[] = [organizationId];
+  const params: InValue[] = [organizationId];
   
   if (timeRange) {
     sql += ' AND pr.created_at >= ? AND pr.created_at <= ?';

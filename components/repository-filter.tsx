@@ -23,6 +23,12 @@ type Repository = {
   id?: number;
 };
 
+type RepositoryApiItem = {
+  id: number;
+  name: string;
+  full_name?: string | null;
+};
+
 interface RepositoryFilterProps {
   onRepositoryChange?: (repositoryId: string) => void;
   selectedRepository?: string;
@@ -49,7 +55,7 @@ export function RepositoryFilter({ onRepositoryChange, selectedRepository = "all
           throw new Error(`Failed to fetch repositories: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const data: { repositories?: RepositoryApiItem[]; error?: string } = await response.json();
         
         // Handle both success and error responses
         if (data.error) {
@@ -65,7 +71,7 @@ export function RepositoryFilter({ onRepositoryChange, selectedRepository = "all
         ];
         
         if (repositories.length > 0) {
-          formattedRepos.push(...repositories.map((repo: any) => ({
+          formattedRepos.push(...repositories.map((repo) => ({
             value: repo.id.toString(),
             label: repo.full_name || repo.name,
             id: repo.id

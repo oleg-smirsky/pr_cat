@@ -1,5 +1,22 @@
-import { query, execute, transaction } from '@/lib/db';
-import { Team, TeamMember, User, TeamWithMembers, UserWithTeams } from '@/lib/types';
+import { query, execute } from '@/lib/db';
+import { Team, TeamMember, User, TeamWithMembers } from '@/lib/types';
+import type { InValue } from '@libsql/client';
+
+type TeamMemberUserRow = {
+  tm_id: number;
+  tm_team_id: number;
+  tm_user_id: string;
+  tm_role: TeamMember['role'];
+  tm_joined_at: string;
+  tm_created_at: string;
+  tm_updated_at: string;
+  u_id: string;
+  u_name: string | null;
+  u_email: string | null;
+  u_image: string | null;
+  u_created_at: string;
+  u_updated_at: string;
+};
 
 // Team CRUD operations
 
@@ -112,7 +129,7 @@ export async function updateTeam(
   data: Partial<Omit<Team, 'id' | 'organization_id' | 'created_at' | 'updated_at'>>
 ): Promise<Team | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -186,7 +203,7 @@ export async function updateTeamMember(
   data: Partial<Pick<TeamMember, 'role'>>
 ): Promise<TeamMember | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -218,7 +235,7 @@ export async function removeTeamMember(teamId: number, userId: string): Promise<
 }
 
 export async function getTeamMembers(teamId: number): Promise<(TeamMember & { user: User })[]> {
-  const rows = await query<any>(`
+  const rows = await query<TeamMemberUserRow>(`
     SELECT 
       tm.id as tm_id,
       tm.team_id as tm_team_id,
@@ -239,7 +256,7 @@ export async function getTeamMembers(teamId: number): Promise<(TeamMember & { us
     ORDER BY u.name
   `, [teamId]);
 
-  return rows.map((row: any) => ({
+  return rows.map((row) => ({
     id: row.tm_id,
     team_id: row.tm_team_id,
     user_id: row.tm_user_id,

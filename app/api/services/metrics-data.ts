@@ -30,19 +30,6 @@ export type TimeSeriesDataPoint = {
   codingHours: number;
 };
 
-// Get base URL for server-side API calls
-function getBaseUrl() {
-  // When running on the server, we need an absolute URL
-  if (typeof window === 'undefined') {
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}`;
-    }
-    return `http://localhost:${process.env.PORT || 3000}`;
-  }
-  // In the browser, relative URLs work fine
-  return '';
-}
-
 /**
  * Fetch metrics summary data (server component)
  */

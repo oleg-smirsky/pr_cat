@@ -23,20 +23,20 @@ export function PracticalValueSection() {
                 <h3 className="text-2xl font-bold">Data-Driven Retrospectives</h3>
               </div>
               <p className="text-muted-foreground mb-6">
-                Move beyond "gut feeling" retrospectives. Use concrete metrics to identify what's working in your team's workflow, what's not, and specific actions you can take to improve together.
+                Move beyond &quot;gut feeling&quot; retrospectives. Use concrete metrics to identify what&apos;s working in your team&apos;s workflow, what&apos;s not, and specific actions you can take to improve together.
               </p>
               <div className="space-y-3">
                 <div className="flex items-start gap-3 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-purple-500 mt-2"></div>
-                  <p><strong>"Our overall cycle time increased 40% this sprint"</strong> — Is it complex features or review bottlenecks?</p>
+                  <p><strong>&quot;Our overall cycle time increased 40% this sprint&quot;</strong> — Is it complex features or review bottlenecks?</p>
                 </div>
                 <div className="flex items-start gap-3 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-purple-500 mt-2"></div>
-                  <p><strong>"Only 67% of PRs got reviewed across teams"</strong> — Should we make reviews faster, not optional?</p>
+                  <p><strong>&quot;Only 67% of PRs got reviewed across teams&quot;</strong> — Should we make reviews faster, not optional?</p>
                 </div>
                 <div className="flex items-start gap-3 text-sm">
                   <div className="h-1.5 w-1.5 rounded-full bg-purple-500 mt-2"></div>
-                  <p><strong>"60% effort on bug fixes vs features this sprint"</strong> — Time to address root causes?</p>
+                  <p><strong>&quot;60% effort on bug fixes vs features this sprint&quot;</strong> — Time to address root causes?</p>
                 </div>
               </div>
             </div>
@@ -44,7 +44,7 @@ export function PracticalValueSection() {
               <h4 className="font-semibold mb-3">Sprint Retrospective Template</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center py-1 border-b border-border/20">
-                  <span className="font-medium">📈 What's improving?</span>
+                  <span className="font-medium">📈 What&apos;s improving?</span>
                   <span className="text-muted-foreground">Review trends</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-border/20">
@@ -52,7 +52,7 @@ export function PracticalValueSection() {
                   <span className="text-muted-foreground">Cycle time spikes</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
-                  <span className="font-medium">🎯 This week's focus?</span>
+                  <span className="font-medium">🎯 This week&apos;s focus?</span>
                   <span className="text-muted-foreground">Smaller PRs</span>
                 </div>
               </div>

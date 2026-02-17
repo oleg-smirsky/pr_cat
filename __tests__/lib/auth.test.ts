@@ -1,5 +1,4 @@
 // Unit tests for authentication and authorization
-import { describe, it, expect, beforeEach } from '@jest/globals';
 
 // Mock auth module
 jest.mock('@/auth', () => ({

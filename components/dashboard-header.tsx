@@ -225,6 +225,7 @@ export function DashboardHeader({ pageTitle = "Dashboard" }: DashboardHeaderProp
             size="sm"
             onClick={handleRefresh}
             disabled={refreshing}
+            aria-label={refreshing ? "Refreshing dashboard data" : "Refresh dashboard data"}
             className="h-9"
           >
             <IconRefresh className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />

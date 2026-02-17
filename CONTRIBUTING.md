@@ -116,7 +116,7 @@ By contributing to PR Cat, you agree that your contributions will be licensed un
 
 ## 🆘 Getting Help
 
-- **Documentation**: Check the [docs](docs/) directory
+- **Documentation**: Start with [docs/README.md](docs/README.md)
 - **Discussions**: Use GitHub Discussions for questions
 - **Issues**: Search existing issues before creating new ones
 

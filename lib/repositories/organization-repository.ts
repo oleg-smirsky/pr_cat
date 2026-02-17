@@ -1,5 +1,6 @@
-import { query, execute, transaction } from '@/lib/db';
+import { query, execute } from '@/lib/db';
 import { Organization, User } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 
 export async function findOrganizationById(id: number): Promise<Organization | null> {
   const orgs = await query<Organization>('SELECT * FROM organizations WHERE id = ?', [id]);
@@ -35,7 +36,7 @@ export async function updateOrganization(
   data: Partial<Omit<Organization, 'id' | 'github_id' | 'created_at' | 'updated_at'>>
 ): Promise<Organization | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -136,7 +137,7 @@ export async function findOrganizationByLogin(
     [login] // SQL's LOWER() function will handle case-insensitivity for the parameter as well
   );
   if (organizations.length > 0) {
-    console.log(`findOrganizationByLogin: Found organization: ${organizations[0].name}, installation_id: ${(organizations[0] as any).installation_id}`);
+    console.log(`findOrganizationByLogin: Found organization: ${organizations[0].name}, installation_id: ${organizations[0].installation_id}`);
     return organizations[0];
   } else {
     console.log(`findOrganizationByLogin: Organization with login ${login} not found.`);

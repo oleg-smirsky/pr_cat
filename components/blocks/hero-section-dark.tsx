@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils"
 import { ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { PrcatLogo } from "@/components/ui/prcat-logo"
+import { PrcatLogoDefault, PrcatLogoInverse } from "@/components/ui/prcat-logo"
 import { Menu, X } from "lucide-react"
-import { useSession, SessionContextValue } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import Image from "next/image"
 import { Session } from "next-auth"
 
@@ -119,8 +119,8 @@ const HeroSection = React.forwardRef<HTMLDivElement, HeroSectionProps>(
                     href="/"
                     aria-label="home"
                     className="inline-flex flex-row items-center gap-2">
-                    <PrcatLogo dark={false} fontSize="text-xl" iconSize="h-5 w-5" className="dark:hidden" />
-                    <PrcatLogo dark={true} fontSize="text-xl" iconSize="h-5 w-5" className="hidden dark:block" />
+                    <PrcatLogoDefault fontSize="text-xl" iconSize="h-5 w-5" className="dark:hidden" />
+                    <PrcatLogoInverse fontSize="text-xl" iconSize="h-5 w-5" className="hidden dark:block" />
                   </Link>
 
                   <button

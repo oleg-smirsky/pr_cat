@@ -163,7 +163,7 @@ function generatePullRequests(developers, repositories) {
 }
 
 // Generate Time Series Data
-function generateTimeSeriesData(pullRequests, developers) {
+function generateTimeSeriesData(pullRequests) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - NUM_DAYS);
   startDate.setHours(0, 0, 0, 0);
@@ -224,7 +224,6 @@ function generateMetricsSummary(pullRequests, timeSeriesData) {
   const prevAvgCodingTime = parseFloat((previousPeriod.reduce((sum, day) => sum + day.codingHours, 0) / previousPeriod.length).toFixed(1));
   
   const avgPRSize = parseFloat((mergedPRs.reduce((sum, pr) => sum + pr.linesAdded + pr.linesRemoved, 0) / mergedPRs.length).toFixed(0));
-  const recentPRs = mergedPRs.slice(-Math.floor(mergedPRs.length/2));
   const olderPRs = mergedPRs.slice(0, Math.floor(mergedPRs.length/2));
   const prevAvgPRSize = parseFloat((olderPRs.reduce((sum, pr) => sum + pr.linesAdded + pr.linesRemoved, 0) / olderPRs.length).toFixed(0));
   
@@ -268,7 +267,7 @@ function generateAllData() {
   const pullRequests = generatePullRequests(developers, repositories);
   
   // Generate derived data
-  const timeSeriesData = generateTimeSeriesData(pullRequests, developers);
+  const timeSeriesData = generateTimeSeriesData(pullRequests);
   const metricsSummary = generateMetricsSummary(pullRequests, timeSeriesData);
   
   // Package all data

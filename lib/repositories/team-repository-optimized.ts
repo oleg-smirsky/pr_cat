@@ -2,6 +2,18 @@
 import { query, execute } from '@/lib/db';
 import { Team, TeamMember, User, TeamWithMembers } from '@/lib/types';
 
+type UserTeamsOptimizedRow = TeamMember & {
+  team_id: number;
+  team_organization_id: number;
+  team_name: string;
+  team_description: string | null;
+  team_color: string | null;
+  team_created_at: string;
+  team_updated_at: string;
+  org_id: number;
+  org_name: string;
+};
+
 /**
  * Get all teams for an organization with their members in a single query
  * This fixes the N+1 query problem by using a JOIN instead of multiple queries
@@ -236,7 +248,7 @@ export async function getUserTeamsOptimized(userId: string): Promise<{
   organizationCount: number;
   teamCount: number;
 }> {
-  const rows = await query<any>(`
+  const rows = await query<UserTeamsOptimizedRow>(`
     SELECT 
       tm.*,
       t.id as team_id,
@@ -255,7 +267,7 @@ export async function getUserTeamsOptimized(userId: string): Promise<{
     ORDER BY o.name, t.name
   `, [userId]);
   
-  const teams = rows.map(row => ({
+  const teams = rows.map((row) => ({
     ...row,
     team: {
       id: row.team_id,

@@ -280,10 +280,20 @@ export function OrganizationCategoryManager({
                   <p className="text-sm text-muted-foreground">{cat.description || 'No description'}</p>
                 </div>
                 <div className="space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleOpenEditDialog(cat)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenEditDialog(cat)}
+                    aria-label={`Edit category ${cat.name}`}
+                  >
                     <IconEdit className="h-4 w-4" />
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleOpenDeleteConfirmDialog(cat)}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleOpenDeleteConfirmDialog(cat)}
+                    aria-label={`Delete category ${cat.name}`}
+                  >
                     <IconTrash className="h-4 w-4" />
                   </Button>
                 </div>

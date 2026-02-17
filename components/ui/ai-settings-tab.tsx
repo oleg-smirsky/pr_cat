@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -8,12 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { AiSettings as FetchedAiSettings, UpdateAiSettingsPayload } from '@/lib/repositories';
-import { AIProvider } from '@/lib/repositories/settings-repository';
-import { Organization } from '@/lib/types';
+import type { AIProvider, AiSettings as FetchedAiSettings, UpdateAiSettingsPayload } from '@/lib/repositories/settings-repository';
 import type { OrganizationWithInstallation } from '@/components/ui/github-org-setup-item';
 import { Avatar, AvatarImage, AvatarFallback } from './avatar';
-import { allModels, ModelDefinition } from '@/lib/ai-models';
+import { allModels } from '@/lib/ai-models';
 
 interface AiSettingsTabProps {
   organizations: OrganizationWithInstallation[];
@@ -36,9 +34,10 @@ export function AiSettingsTab({ organizations, selectedOrganization: parentSelec
   const [isSaving, setIsSaving] = useState(false);
 
   // Filter models by selected provider
-  const availableModels = selectedProvider 
-    ? allModels.filter(model => model.provider === selectedProvider)
-    : [];
+  const availableModels = useMemo(
+    () => (selectedProvider ? allModels.filter(model => model.provider === selectedProvider) : []),
+    [selectedProvider]
+  );
 
   // Organizations are now passed as props from parent
   // Set initial selection based on parent's selected organization
@@ -103,7 +102,7 @@ export function AiSettingsTab({ organizations, selectedOrganization: parentSelec
         setSelectedModelId(null);
       }
     }
-  }, [selectedProvider, isLoadingSettings]);
+  }, [selectedProvider, selectedModelId, isLoadingSettings]);
 
   // Debug state changes
   useEffect(() => {
@@ -199,7 +198,7 @@ export function AiSettingsTab({ organizations, selectedOrganization: parentSelec
   
   const getApiKeyInputProps = (provider: 'openai' | 'google' | 'anthropic') => {
     let value = '';
-    let onChange: (e: React.ChangeEvent<HTMLInputElement>) => void = () => {};
+    let onChange: (e: ChangeEvent<HTMLInputElement>) => void = () => {};
     let isSet = false;
     let placeholder = 'Enter API Key';
 

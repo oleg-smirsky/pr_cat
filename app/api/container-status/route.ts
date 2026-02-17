@@ -3,10 +3,10 @@
  * Shows the current state of the dependency injection container
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { DIContainer } from '@/lib/core'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const container = DIContainer.getInstance()
     const status = container.getStatus()

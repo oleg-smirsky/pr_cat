@@ -1,23 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { MetricsSummary, PaginatedResult, PullRequestSummary } from '@/lib/core';
+
+interface DashboardRepository {
+  id: string;
+  name: string;
+  full_name: string;
+  organization: {
+    id: string;
+    name: string;
+  };
+  is_tracked: boolean;
+  private: boolean;
+  description: string | null;
+}
 
 interface DashboardData {
   user: {
     id: string;
-    name: string;
-    email: string;
+    name: string | null;
+    email: string | null;
   };
   organizations: Array<{
-    id: number;
-    name: string;
-    role: string;
+    id: string;
+    name: string | null;
+    role?: string;
   }>;
   primaryOrganization: {
-    id: number;
-    name: string;
+    id: string;
+    name: string | null;
   };
-  repositories?: any[];
-  metricsSummary?: any;
-  recentPRs?: any[];
+  repositories?: DashboardRepository[];
+  metricsSummary?: MetricsSummary;
+  recentPRs?: PaginatedResult<PullRequestSummary>;
 }
 
 interface UseDashboardDataOptions {
@@ -36,15 +50,16 @@ export function useDashboardData(options: UseDashboardDataOptions = {}) {
     autoRefresh = false,
     refreshInterval = 30000 // 30 seconds
   } = options;
+  const includeQuery = useMemo(() => include.join(','), [include]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setError(null);
       
       // Build query parameters
       const params = new URLSearchParams();
-      if (include.length > 0) {
-        params.append('include', include.join(','));
+      if (includeQuery.length > 0) {
+        params.append('include', includeQuery);
       }
 
       const response = await fetch(`/api/dashboard/data?${params.toString()}`);
@@ -66,15 +81,17 @@ export function useDashboardData(options: UseDashboardDataOptions = {}) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [includeQuery]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
 
     // Set up auto-refresh if enabled
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     if (autoRefresh) {
-      intervalId = setInterval(fetchData, refreshInterval);
+      intervalId = setInterval(() => {
+        void fetchData();
+      }, refreshInterval);
     }
 
     // Cleanup
@@ -83,12 +100,12 @@ export function useDashboardData(options: UseDashboardDataOptions = {}) {
         clearInterval(intervalId);
       }
     };
-  }, [include.join(','), autoRefresh, refreshInterval]);
+  }, [autoRefresh, fetchData, refreshInterval]);
 
-  const refetch = () => {
+  const refetch = useCallback(() => {
     setLoading(true);
-    fetchData();
-  };
+    void fetchData();
+  }, [fetchData]);
 
   return {
     data,

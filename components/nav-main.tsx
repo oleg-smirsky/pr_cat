@@ -13,23 +13,27 @@ import {
 
 export function NavMain({
   items,
+  currentPath,
 }: {
   items: {
     title: string
     url: string
     icon?: Icon
-    isActive?: boolean
   }[]
+  currentPath?: string
 }) {
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
-          {items.map((item) => (
+          {items.map((item) => {
+            const isItemActive = currentPath === item.url
+
+            return (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton 
                 tooltip={item.title}
-                className={item.isActive ? "bg-background text-foreground shadow-sm" : ""}
+                isActive={isItemActive}
                 asChild
               >
                 <Link href={item.url}>
@@ -38,7 +42,8 @@ export function NavMain({
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          ))}
+            )
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>

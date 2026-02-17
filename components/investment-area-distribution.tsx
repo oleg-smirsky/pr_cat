@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTeamFilterParams, useTeamFilter } from "@/hooks/use-team-filter";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ChartConfig, 
   ChartContainer, 
@@ -21,7 +19,6 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type TimeSeriesDataPoint = {
   date: string;
@@ -40,26 +37,27 @@ type TimeSeriesResponse = {
 };
 
 export function InvestmentAreaDistribution() {
-  const isMobile = useIsMobile();
   const teamFilterParams = useTeamFilterParams();
-  const { timeRange, setTimeRange } = useTeamFilter(); // Use global time range instead of local state
+  const { timeRange } = useTeamFilter();
   const [data, setData] = useState<TimeSeriesDataPoint[]>([]);
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const teamFilterQuery = useMemo(() => new URLSearchParams(teamFilterParams).toString(), [teamFilterParams]);
+  const requestQuery = useMemo(() => {
+    const params = new URLSearchParams(teamFilterQuery);
+    params.set('timeRange', timeRange);
+    params.set('format', 'timeseries');
+    return params.toString();
+  }, [teamFilterQuery, timeRange]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch category distribution time series data with team filtering
-        const params = new URLSearchParams(teamFilterParams);
-        params.set('timeRange', timeRange);
-        params.set('format', 'timeseries');
-        const response = await fetch(`/api/pull-requests/category-distribution?${params.toString()}`);
+        const response = await fetch(`/api/pull-requests/category-distribution?${requestQuery}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch category distribution: ${response.status} ${response.statusText}`);
@@ -82,7 +80,7 @@ export function InvestmentAreaDistribution() {
     };
 
     fetchData();
-  }, [timeRange, isMobile, teamFilterParams]);
+  }, [requestQuery]);
 
   const filteredData = data.filter(item => {
     const date = new Date(item.date);
@@ -251,7 +249,7 @@ export function InvestmentAreaDistribution() {
                 return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               }}
             />
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+            <ChartTooltip content={<ChartTooltipContent variant="labelless" />} />
             <ChartLegend content={<ChartLegendContent />} />
             
             {selectedCategories.map((categoryKey, index) => {

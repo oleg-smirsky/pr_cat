@@ -14,12 +14,12 @@ import {
 
 export class DemoGitHubService implements IGitHubService {
   
-  async getUser(accessToken: string): Promise<User> {
+  async getUser(_accessToken: string): Promise<User> {
     // Return first demo user for any access token
     return DEMO_USERS[0]
   }
 
-  async getUserOrganizations(accessToken: string): Promise<Organization[]> {
+  async getUserOrganizations(_accessToken: string): Promise<Organization[]> {
     // Return all demo organizations
     return DEMO_ORGANIZATIONS
   }
@@ -316,9 +316,9 @@ export class DemoGitHubService implements IGitHubService {
   }
 
   validateWebhookSignature(
-    payload: string,
-    signature: string,
-    secret: string
+    _payload: string,
+    _signature: string,
+    _secret: string
   ): boolean {
     // In demo mode, always return true for webhook validation
     return true
@@ -326,7 +326,7 @@ export class DemoGitHubService implements IGitHubService {
 
   async processWebhookEvent(
     event: string,
-    payload: any
+    _payload: unknown
   ): Promise<{
     processed: boolean
     actions: string[]

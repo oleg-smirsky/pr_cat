@@ -104,13 +104,18 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+type ChartTooltipContentVariant =
+  | "default"
+  | "labelless"
+  | "indicatorless"
+  | "minimal"
+
 function ChartTooltipContent({
   active,
   payload,
   className,
   indicator = "dot",
-  hideLabel = false,
-  hideIndicator = false,
+  variant = "default",
   label,
   labelFormatter,
   labelClassName,
@@ -118,18 +123,19 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-}: Partial<RechartsPrimitive.TooltipContentProps<any, any>> &
+}: Partial<RechartsPrimitive.TooltipContentProps<number | string, string>> &
   React.ComponentProps<"div"> & {
-    hideLabel?: boolean
-    hideIndicator?: boolean
+    variant?: ChartTooltipContentVariant
     indicator?: "line" | "dot" | "dashed"
     nameKey?: string
     labelKey?: string
   }) {
   const { config } = useChart()
+  const showLabel = variant !== "labelless" && variant !== "minimal"
+  const showIndicator = variant !== "indicatorless" && variant !== "minimal"
 
   const tooltipLabel = React.useMemo(() => {
-    if (hideLabel || !payload?.length) {
+    if (!showLabel || !payload?.length) {
       return null
     }
 
@@ -158,7 +164,7 @@ function ChartTooltipContent({
     label,
     labelFormatter,
     payload,
-    hideLabel,
+    showLabel,
     labelClassName,
     config,
     labelKey,
@@ -199,7 +205,7 @@ function ChartTooltipContent({
                   {itemConfig?.icon ? (
                     <itemConfig.icon />
                   ) : (
-                    !hideIndicator && (
+                    showIndicator && (
                       <div
                         className={cn(
                           "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
@@ -250,9 +256,11 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
+type ChartLegendContentVariant = "default" | "iconless"
+
 function ChartLegendContent({
   className,
-  hideIcon = false,
+  variant = "default",
   payload,
   verticalAlign = "bottom",
   nameKey,
@@ -263,10 +271,11 @@ function ChartLegendContent({
       "payload" | "verticalAlign"
     >
   > & {
-    hideIcon?: boolean
+    variant?: ChartLegendContentVariant
     nameKey?: string
   }) {
   const { config } = useChart()
+  const showIcon = variant !== "iconless"
 
   if (!payload?.length) {
     return null
@@ -291,7 +300,7 @@ function ChartLegendContent({
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
             )}
           >
-            {itemConfig?.icon && !hideIcon ? (
+            {itemConfig?.icon && showIcon ? (
               <itemConfig.icon />
             ) : (
               <div

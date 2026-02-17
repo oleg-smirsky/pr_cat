@@ -2,9 +2,8 @@
 
 import React from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { InstallGitHubApp } from "@/components/ui/install-github-app";
+import { InstallGitHubAppButton } from "@/components/ui/install-github-app";
 import { CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -38,6 +37,17 @@ export function GitHubOrgSetupItem({
     }
   };
 
+  const handleItemKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canBeSelected) {
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onSelectOrganization(org);
+    }
+  };
+
   return (
     <div 
       className={cn(
@@ -46,6 +56,11 @@ export function GitHubOrgSetupItem({
         isSelected && canBeSelected && "ring-2 ring-primary bg-muted/30"
       )}
       onClick={handleItemClick}
+      onKeyDown={canBeSelected ? handleItemKeyDown : undefined}
+      role={canBeSelected ? "button" : undefined}
+      tabIndex={canBeSelected ? 0 : undefined}
+      aria-pressed={canBeSelected ? isSelected : undefined}
+      aria-disabled={!canBeSelected}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3 grow min-w-0">
@@ -71,7 +86,7 @@ export function GitHubOrgSetupItem({
         
         <div className="shrink-0 ml-2">
             {!org.hasAppInstalled ? (
-            <InstallGitHubApp 
+            <InstallGitHubAppButton 
                 size="sm" 
                 organizationName={org.name} 
                 organizationGitHubId={org.github_id}

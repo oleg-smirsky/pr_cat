@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconUsers, IconUser, IconCode, IconGitPullRequest, IconMessageCircle, IconTrendingUp, IconTrendingDown, IconEye, IconClock } from "@tabler/icons-react"
+import { IconUsers, IconUser, IconGitPullRequest, IconTrendingUp, IconTrendingDown, IconEye, IconClock } from "@tabler/icons-react"
 import {
   Card,
   CardContent,
@@ -68,6 +68,11 @@ type TeamPerformanceMetrics = {
   reviewCoverage: number;
 };
 
+type Organization = {
+  id: number;
+  name: string;
+};
+
 
 
 export function TeamPerformanceView() {
@@ -75,41 +80,13 @@ export function TeamPerformanceView() {
   const [selectedTeamId, setSelectedTeamId] = React.useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = React.useState<Team | null>(null);
   const [teamMetrics, setTeamMetrics] = React.useState<TeamPerformanceMetrics | null>(null);
-  const [organizations, setOrganizations] = React.useState<any[]>([]);
+  const [organizations, setOrganizations] = React.useState<Organization[]>([]);
   const [selectedOrgId, setSelectedOrgId] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = React.useState(false);
-  const [repositories, setRepositories] = React.useState<any[]>([]);
 
-  // Fetch organizations and repositories on mount
-  React.useEffect(() => {
-    fetchOrganizations();
-    fetchRepositories();
-  }, []);
-
-  // Fetch teams when organization changes
-  React.useEffect(() => {
-    if (selectedOrgId) {
-      fetchTeams();
-    }
-  }, [selectedOrgId]);
-
-  // Fetch team details when team changes
-  React.useEffect(() => {
-    if (selectedTeamId) {
-      fetchTeamDetails();
-    }
-  }, [selectedTeamId]);
-
-  // Fetch metrics when team details are loaded
-  React.useEffect(() => {
-    if (selectedTeam && selectedTeam.members) {
-      fetchTeamMetrics();
-    }
-  }, [selectedTeam]);
-
-  const fetchOrganizations = async () => {
+  const fetchOrganizations = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -121,7 +98,7 @@ export function TeamPerformanceView() {
         throw new Error(errorData.error || 'Failed to fetch organizations');
       }
       
-      const data = await response.json();
+      const data: Organization[] = await response.json();
       console.log('Fetched organizations:', data);
       
       setOrganizations(data);
@@ -137,9 +114,9 @@ export function TeamPerformanceView() {
       setError(error instanceof Error ? error.message : 'Failed to load organizations');
       setLoading(false); // Stop loading on error
     }
-  };
+  }, []);
 
-  const fetchTeams = async () => {
+  const fetchTeams = React.useCallback(async () => {
     if (!selectedOrgId) {
       setLoading(false);
       return;
@@ -161,32 +138,16 @@ export function TeamPerformanceView() {
       console.log('Fetched teams:', data);
       
       setTeams(data);
-      
-      // Auto-select first team if available
-      if (data.length > 0 && !selectedTeamId) {
-        setSelectedTeamId(data[0].id);
-      }
+      setSelectedTeamId((current) => current ?? (data.length > 0 ? data[0].id : null));
     } catch (error) {
       console.error('Failed to fetch teams:', error);
       setError(error instanceof Error ? error.message : 'Failed to load teams. Please check your settings.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedOrgId]);
 
-  const fetchRepositories = async () => {
-    try {
-      const response = await fetch('/api/repositories');
-      if (response.ok) {
-        const data = await response.json();
-        setRepositories(data.repositories || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch repositories:', error);
-    }
-  };
-
-  const fetchTeamDetails = async () => {
+  const fetchTeamDetails = React.useCallback(async () => {
     if (!selectedOrgId || !selectedTeamId) return;
     
     try {
@@ -199,9 +160,9 @@ export function TeamPerformanceView() {
     } catch (error) {
       console.error('Failed to fetch team details:', error);
     }
-  };
+  }, [selectedOrgId, selectedTeamId]);
 
-  const fetchTeamMetrics = async () => {
+  const fetchTeamMetrics = React.useCallback(async () => {
     if (!selectedTeam || !selectedTeam.members) {
       setTeamMetrics(null);
       return;
@@ -251,7 +212,33 @@ export function TeamPerformanceView() {
     } finally {
       setMetricsLoading(false);
     }
-  };
+  }, [selectedTeam]);
+
+  // Fetch organizations on mount
+  React.useEffect(() => {
+    void fetchOrganizations();
+  }, [fetchOrganizations]);
+
+  // Fetch teams when organization changes
+  React.useEffect(() => {
+    if (selectedOrgId) {
+      void fetchTeams();
+    }
+  }, [selectedOrgId, fetchTeams]);
+
+  // Fetch team details when team changes
+  React.useEffect(() => {
+    if (selectedTeamId) {
+      void fetchTeamDetails();
+    }
+  }, [selectedTeamId, fetchTeamDetails]);
+
+  // Fetch metrics when team details are loaded
+  React.useEffect(() => {
+    if (selectedTeam && selectedTeam.members) {
+      void fetchTeamMetrics();
+    }
+  }, [selectedTeam, fetchTeamMetrics]);
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -462,7 +449,7 @@ export function TeamPerformanceView() {
                 <div className="text-center py-8">
                   <IconUsers className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    No activity found for this team's members in the last 30 days.
+                    No activity found for this team&apos;s members in the last 30 days.
                   </p>
                 </div>
               ) : (
@@ -530,7 +517,7 @@ export function TeamPerformanceView() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-blue-700">
-                        <strong>Cross-Repository Performance:</strong> This team's metrics include contributions 
+                        <strong>Cross-Repository Performance:</strong> This team&apos;s metrics include contributions 
                         across all repositories in your organization, providing a comprehensive view of team productivity.
                       </p>
                     </div>

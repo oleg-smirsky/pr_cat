@@ -60,8 +60,8 @@ export class DemoMetricsService implements IMetricsService {
   async getTimeSeries(
     organizationId: string,
     days: number,
-    repositoryId?: string,
-    teamId?: number
+    _repositoryId?: string,
+    _teamId?: number
   ): Promise<TimeSeriesDataPoint[]> {
     return DemoDataGenerator.generateTimeSeries(days)
   }
@@ -122,8 +122,8 @@ export class DemoMetricsService implements IMetricsService {
   async getTeamPerformance(
     organizationId: string,
     repositoryIds?: string[],
-    teamId?: number,
-    timeRange?: string
+    _teamId?: number,
+    _timeRange?: string
   ): Promise<TeamPerformanceMetrics> {
     const teamMembers = [...DEMO_TEAM_MEMBERS]
     
@@ -155,7 +155,7 @@ export class DemoMetricsService implements IMetricsService {
     }
   }
 
-  async getRepositoryInsights(organizationId: string): Promise<RepositoryInsights> {
+  async getRepositoryInsights(_organizationId: string): Promise<RepositoryInsights> {
     // Demo repository insights data
     const repositories = [
       {
@@ -265,7 +265,7 @@ export class DemoMetricsService implements IMetricsService {
   async getDeveloperMetrics(
     organizationId: string,
     userId?: string,
-    timeRange?: TimeRange
+    _timeRange?: TimeRange
   ): Promise<{
     userId: string
     name: string
@@ -320,8 +320,8 @@ export class DemoMetricsService implements IMetricsService {
   }
 
   async getReviewCoverage(
-    organizationId: string,
-    timeRange?: TimeRange
+    _organizationId: string,
+    _timeRange?: TimeRange
   ): Promise<{
     totalPRs: number
     reviewedPRs: number

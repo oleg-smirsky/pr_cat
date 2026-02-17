@@ -43,19 +43,8 @@ const fetcher = async (url: string) => {
   return data;
 };
 
-// Helper to determine if data is stale based on daily granularity
-function getOptimalRevalidationTime(): number {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(1, 0, 0, 0); // 1 AM next day
-  
-  // Return milliseconds until 1 AM tomorrow
-  return tomorrow.getTime() - now.getTime();
-}
-
 // Smart revalidation based on data freshness
-function shouldRevalidateDaily(data: any): boolean {
+function shouldRevalidateDaily(data: { _fetchedAt?: string } | undefined): boolean {
   if (!data?._fetchedAt) return true;
   
   const fetchedAt = new Date(data._fetchedAt);
@@ -92,7 +81,7 @@ function useMetricsBase<T extends CachedData>(
     // Smart revalidation based on data freshness
     revalidateIfStale: true,
     // Custom revalidation logic
-    revalidateWhenStale: (data: any) => shouldRevalidateDaily(data),
+    revalidateWhenStale: (data: { _fetchedAt?: string } | undefined) => shouldRevalidateDaily(data),
     // Error retry with exponential backoff
     errorRetryCount: 3,
     errorRetryInterval: 5000,

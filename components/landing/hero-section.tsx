@@ -126,7 +126,6 @@ export function HeroSection() {
                         <div className="relative mx-auto max-w-6xl">
                             <Tilt 
                                 rotationFactor={8} 
-                                isRevese={false}
                                 className="w-full"
                             >
                                 <div className="overflow-hidden rounded-2xl border border-[#262626]/60 p-4 shadow-lg shadow-black/30 ring-1 ring-[#262626]/30 bg-[#0b0b0b]/80 backdrop-blur-sm">

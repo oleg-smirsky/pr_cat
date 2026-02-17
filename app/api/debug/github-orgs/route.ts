@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { logGitHubOrgsForUser } from '@/lib/github';
 import { findUserById } from '@/lib/repositories';
 import { query } from '@/lib/db';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await auth();
   
   if (!session || !session.user) {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     await logGitHubOrgsForUser(session.accessToken);
     
     // Check user-organization connections
-    const userOrgs = await query(
+    const userOrgs = await query<Record<string, unknown>>(
       `SELECT uo.*, o.name, o.github_id FROM user_organizations uo 
        JOIN organizations o ON uo.organization_id = o.id
        WHERE uo.user_id = ?`,
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     );
     
     // Check repository count
-    const repositories = await query(
+    const repositories = await query<Record<string, unknown>>(
       `SELECT r.* FROM repositories r 
        JOIN organizations o ON r.organization_id = o.id 
        ORDER BY r.name ASC 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     );
     
     // Check user_organization table directly
-    const allUserOrgs = await query(
+    const allUserOrgs = await query<Record<string, unknown>>(
       `SELECT * FROM user_organizations LIMIT 100`
     );
     

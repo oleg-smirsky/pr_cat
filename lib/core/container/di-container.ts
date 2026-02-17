@@ -306,7 +306,7 @@ export class DIContainer {
     mode: string
     registeredServices: string[]
     instantiatedServices: string[]
-    config: any
+    config: ReturnType<EnvironmentConfig['getDebugInfo']>
   } {
     const registeredServices = Array.from(this.services.keys())
     const instantiatedServices = registeredServices.filter(name => 

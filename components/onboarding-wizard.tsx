@@ -1,19 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { InstallGitHubApp } from '@/components/ui/install-github-app';
-import { CheckCircle2, ChevronRight, Github, CheckIcon } from 'lucide-react';
+import { InstallGitHubAppButton } from '@/components/ui/install-github-app';
+import { CheckCircle2, ChevronRight, Github } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { allModels, ModelDefinition } from '@/lib/ai-models';
+import { allModels } from '@/lib/ai-models';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Organization, Repository } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -41,7 +40,7 @@ interface GitHubRepository {
 }
 
 export function OnboardingWizard() {
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(STEPS.WELCOME);
   const [githubAppInstalled, setGithubAppInstalled] = useState(false);
@@ -64,62 +63,8 @@ export function OnboardingWizard() {
     ? allModels.filter(model => model.provider === selectedProvider)
     : [];
 
-  // Load GitHub data when on repository selection step
-  useEffect(() => {
-    const fetchGitHubData = async () => {
-      if (currentStep === STEPS.REPO_SELECT) {
-        await fetchGitHubOrganizations();
-      }
-    };
-    
-    fetchGitHubData();
-  }, [currentStep]);
-
-  // Fetch GitHub organizations directly
-  const fetchGitHubOrganizations = async () => {
-    setIsLoadingOrgs(true);
-    try {
-      // Use GitHub API directly - bypassing our backend API
-      const accessToken = session?.accessToken;
-      
-      if (!accessToken) {
-        console.error('No GitHub access token found in session');
-        toast.error('GitHub authorization required');
-        return;
-      }
-      
-      const response = await fetch('https://api.github.com/user/orgs', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`, 
-          Accept: 'application/vnd.github.v3+json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setOrganizations(data);
-      
-      if (data.length > 0) {
-        setSelectedOrg(data[0]);
-        fetchGitHubRepositories(data[0].login);
-      }
-    } catch (error) {
-      console.error('Error fetching GitHub organizations:', error);
-      toast.error('Failed to load GitHub organizations');
-      // Fallback to mocks if needed
-      setOrganizations([
-        { id: 1, login: 'Example-Organization', avatar_url: '' }
-      ]);
-    } finally {
-      setIsLoadingOrgs(false);
-    }
-  };
-
   // Fetch repositories for the selected organization
-  const fetchGitHubRepositories = async (orgName: string) => {
+  const fetchGitHubRepositories = useCallback(async (orgName: string) => {
     setIsLoadingRepos(true);
     try {
       // Use GitHub API directly - bypassing our backend API
@@ -154,14 +99,64 @@ export function OnboardingWizard() {
     } finally {
       setIsLoadingRepos(false);
     }
-  };
+  }, [session?.accessToken]);
+
+  // Fetch GitHub organizations directly
+  const fetchGitHubOrganizations = useCallback(async () => {
+    setIsLoadingOrgs(true);
+    try {
+      // Use GitHub API directly - bypassing our backend API
+      const accessToken = session?.accessToken;
+      
+      if (!accessToken) {
+        console.error('No GitHub access token found in session');
+        toast.error('GitHub authorization required');
+        return;
+      }
+      
+      const response = await fetch('https://api.github.com/user/orgs', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, 
+          Accept: 'application/vnd.github.v3+json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`GitHub API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setOrganizations(data);
+      
+      if (data.length > 0) {
+        setSelectedOrg(data[0]);
+        await fetchGitHubRepositories(data[0].login);
+      }
+    } catch (error) {
+      console.error('Error fetching GitHub organizations:', error);
+      toast.error('Failed to load GitHub organizations');
+      // Fallback to mocks if needed
+      setOrganizations([
+        { id: 1, login: 'Example-Organization', avatar_url: '' }
+      ]);
+    } finally {
+      setIsLoadingOrgs(false);
+    }
+  }, [fetchGitHubRepositories, session?.accessToken]);
+
+  // Load GitHub data when on repository selection step
+  useEffect(() => {
+    if (currentStep === STEPS.REPO_SELECT) {
+      void fetchGitHubOrganizations();
+    }
+  }, [currentStep, fetchGitHubOrganizations]);
 
   // Handle organization selection
   const handleOrgSelect = (org: GitHubOrganization) => {
     setSelectedOrg(org);
     setRepositories([]);
     setSelectedRepoIds(new Set());
-    fetchGitHubRepositories(org.login);
+    void fetchGitHubRepositories(org.login);
   };
   
   // Toggle repository selection
@@ -206,7 +201,7 @@ export function OnboardingWizard() {
   const handleGitHubAppInstall = () => {
     sessionStorage.setItem('githubAppInstallStarted', 'true');
     // This is where you'd open the GitHub App installation page
-    // For now, we'll use the InstallGitHubApp component's logic
+    // For now, we'll use the InstallGitHubAppButton component's logic
   };
 
   // Handle provider selection
@@ -333,7 +328,7 @@ export function OnboardingWizard() {
             <div>
               <CardTitle className="text-2xl">Welcome to PR Cat</CardTitle>
               <CardDescription>
-                Let's get your workspace set up in just a few steps
+                Let&apos;s get your workspace set up in just a few steps
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={handleSkip}>
@@ -397,9 +392,9 @@ export function OnboardingWizard() {
                   <Github className="h-10 w-10" />
                   <p className="text-sm text-center">
                     Click the button below to install the PR Cat GitHub App.
-                    You'll be redirected to GitHub to complete the installation.
+                    You&apos;ll be redirected to GitHub to complete the installation.
                   </p>
-                  <InstallGitHubApp onClick={handleGitHubAppInstall} />
+                  <InstallGitHubAppButton onClick={handleGitHubAppInstall} />
                 </div>
               )}
             </div>
@@ -511,7 +506,7 @@ export function OnboardingWizard() {
               ) : organizations.length === 0 ? (
               <div className="p-4 bg-muted/50 rounded-md">
                 <p className="text-sm text-center">
-                    No GitHub organizations found. Please make sure you've installed the PR Cat GitHub App and have access to GitHub organizations.
+                    No GitHub organizations found. Please make sure you&apos;ve installed the PR Cat GitHub App and have access to GitHub organizations.
                   </p>
                 </div>
               ) : (
@@ -589,7 +584,7 @@ export function OnboardingWizard() {
               </div>
               <h3 className="text-lg font-medium">Setup Complete!</h3>
               <p>
-                You're all set! PR Cat is now ready to help you analyze and categorize your pull requests.
+                You&apos;re all set! PR Cat is now ready to help you analyze and categorize your pull requests.
               </p>
             </div>
           )}

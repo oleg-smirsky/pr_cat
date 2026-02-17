@@ -1,18 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTeamFilterParams, useTeamFilter } from "@/hooks/use-team-filter";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ChartConfig, 
   ChartContainer, 
@@ -21,7 +19,6 @@ import {
   ChartTooltip, 
   ChartTooltipContent 
 } from "@/components/ui/chart";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type TimeSeriesDataPoint = {
   date: string;
@@ -48,14 +45,20 @@ export function EnhancedInvestmentAreaDistribution({
   initialData,
   className
 }: EnhancedInvestmentAreaDistributionProps) {
-  const isMobile = useIsMobile();
   const teamFilterParams = useTeamFilterParams();
-  const { timeRange, setTimeRange } = useTeamFilter(); // Use global time range instead of local state
+  const { timeRange } = useTeamFilter();
   const [data, setData] = useState<TimeSeriesDataPoint[]>(initialData?.data || []);
   const [categories, setCategories] = useState<CategoryInfo[]>(initialData?.categories || []);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
+  const teamFilterQuery = useMemo(() => new URLSearchParams(teamFilterParams).toString(), [teamFilterParams]);
+  const requestQuery = useMemo(() => {
+    const params = new URLSearchParams(teamFilterQuery);
+    params.set('timeRange', timeRange);
+    params.set('format', 'timeseries');
+    return params.toString();
+  }, [teamFilterQuery, timeRange]);
 
   // Initialize selected categories when we have initial data or data changes
   useEffect(() => {
@@ -71,10 +74,7 @@ export function EnhancedInvestmentAreaDistribution({
     // Delay background refresh by 3 seconds to not interfere with initial render
     const refreshTimer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams(teamFilterParams);
-        params.set('timeRange', timeRange);
-        params.set('format', 'timeseries');
-        const response = await fetch(`/api/pull-requests/category-distribution?${params.toString()}`);
+        const response = await fetch(`/api/pull-requests/category-distribution?${requestQuery}`);
         if (response.ok) {
           const timeSeriesData: TimeSeriesResponse = await response.json();
           setData(timeSeriesData.data);
@@ -87,7 +87,7 @@ export function EnhancedInvestmentAreaDistribution({
     }, 3000);
     
     return () => clearTimeout(refreshTimer);
-  }, [initialData, timeRange]);
+  }, [initialData, requestQuery]);
 
   useEffect(() => {
     if (initialData) return; // Skip if we have initial data
@@ -96,11 +96,7 @@ export function EnhancedInvestmentAreaDistribution({
       try {
         setLoading(true);
         setError(null);
-        
-        const params = new URLSearchParams(teamFilterParams);
-        params.set('timeRange', timeRange);
-        params.set('format', 'timeseries');
-        const response = await fetch(`/api/pull-requests/category-distribution?${params.toString()}`);
+        const response = await fetch(`/api/pull-requests/category-distribution?${requestQuery}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch category distribution: ${response.status} ${response.statusText}`);
@@ -123,7 +119,7 @@ export function EnhancedInvestmentAreaDistribution({
     };
 
     fetchData();
-  }, [timeRange, isMobile, teamFilterParams]);
+  }, [initialData, requestQuery]);
 
   const filteredData = data.filter(item => {
     const date = new Date(item.date);
@@ -299,7 +295,7 @@ export function EnhancedInvestmentAreaDistribution({
                 return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
               }}
             />
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+            <ChartTooltip content={<ChartTooltipContent variant="labelless" />} />
             <ChartLegend content={<ChartLegendContent />} />
             
             {selectedCategories.map((categoryKey, index) => {

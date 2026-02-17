@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 
 // Team and Organization types
 export type Team = {
@@ -59,17 +59,17 @@ const STORAGE_KEYS = {
 } as const;
 
 // Helper functions for localStorage with SSR safety
-const getStorageValue = (key: string, defaultValue: any) => {
+const getStorageValue = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') return defaultValue;
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    return item ? (JSON.parse(item) as T) : defaultValue;
   } catch {
     return defaultValue;
   }
 };
 
-const setStorageValue = (key: string, value: any) => {
+const setStorageValue = <T,>(key: string, value: T) => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(value));
@@ -88,9 +88,14 @@ export function TeamFilterProvider({ children }: TeamFilterProviderProps) {
   ); // Default to 2 weeks for retrospectives
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const selectedOrganizationRef = useRef<Organization | null>(null);
+
+  useEffect(() => {
+    selectedOrganizationRef.current = selectedOrganization;
+  }, [selectedOrganization]);
 
   // Fetch organizations on mount
-  const fetchOrganizations = async () => {
+  const fetchOrganizations = useCallback(async () => {
     try {
       setError(null);
       const response = await fetch('/api/organizations');
@@ -103,14 +108,16 @@ export function TeamFilterProvider({ children }: TeamFilterProviderProps) {
       const data = await response.json();
       setOrganizations(data);
       
-          // Auto-select first organization if none selected, or restore from localStorage
-      if (data.length > 0 && !selectedOrganization) {
-        const savedOrgId = getStorageValue(STORAGE_KEYS.SELECTED_ORG_ID, null);
-        const orgToSelect = savedOrgId 
+      // Auto-select first organization if none selected, or restore from localStorage
+      setSelectedOrganization((current) => {
+        if (current || data.length === 0) {
+          return current;
+        }
+        const savedOrgId = getStorageValue<number | null>(STORAGE_KEYS.SELECTED_ORG_ID, null);
+        return savedOrgId
           ? data.find((org: Organization) => org.id === savedOrgId) || data[0]
           : data[0];
-        setSelectedOrganization(orgToSelect);
-      }
+      });
       
       return data;
     } catch (error) {
@@ -118,10 +125,10 @@ export function TeamFilterProvider({ children }: TeamFilterProviderProps) {
       setError(error instanceof Error ? error.message : 'Failed to load organizations');
       return [];
     }
-  };
+  }, []);
 
   // Fetch teams for selected organization
-  const fetchTeams = async (orgId: number) => {
+  const fetchTeams = useCallback(async (orgId: number) => {
     try {
       setError(null);
       const response = await fetch(`/api/organizations/${orgId}/teams`);
@@ -135,12 +142,14 @@ export function TeamFilterProvider({ children }: TeamFilterProviderProps) {
       setTeams(data);
       
       // Restore selected team from localStorage if it exists in the fetched teams
-      const savedTeamId = getStorageValue(STORAGE_KEYS.SELECTED_TEAM_ID, null);
-      if (savedTeamId && data.length > 0 && !selectedTeam) {
-        const teamToSelect = data.find((team: Team) => team.id === savedTeamId);
-        if (teamToSelect) {
-          setSelectedTeam(teamToSelect);
-        }
+      const savedTeamId = getStorageValue<number | null>(STORAGE_KEYS.SELECTED_TEAM_ID, null);
+      if (savedTeamId && data.length > 0) {
+        setSelectedTeam((current) => {
+          if (current) {
+            return current;
+          }
+          return data.find((team: Team) => team.id === savedTeamId) || null;
+        });
       }
       
       return data;
@@ -149,37 +158,39 @@ export function TeamFilterProvider({ children }: TeamFilterProviderProps) {
       setError(error instanceof Error ? error.message : 'Failed to load teams');
       return [];
     }
-  };
+  }, []);
 
   // Refresh all data
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setLoading(true);
     try {
       const orgs = await fetchOrganizations();
-      if (orgs.length > 0 && selectedOrganization) {
-        await fetchTeams(selectedOrganization.id);
+      const currentSelectedOrgId = selectedOrganizationRef.current?.id;
+      const orgIdToLoad = currentSelectedOrgId || orgs[0]?.id;
+      if (orgIdToLoad) {
+        await fetchTeams(orgIdToLoad);
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchOrganizations, fetchTeams]);
 
   // Initial data load
   useEffect(() => {
-    refreshData();
-  }, []);
+    void refreshData();
+  }, [refreshData]);
 
   // Fetch teams when organization changes
   useEffect(() => {
     if (selectedOrganization) {
-      fetchTeams(selectedOrganization.id);
+      void fetchTeams(selectedOrganization.id);
       // Clear selected team when changing organizations
       setSelectedTeam(null);
     } else {
       setTeams([]);
       setSelectedTeam(null);
     }
-  }, [selectedOrganization]);
+  }, [fetchTeams, selectedOrganization]);
 
   // Persist selections to localStorage
   useEffect(() => {

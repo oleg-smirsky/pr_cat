@@ -1,5 +1,6 @@
 import { query, execute } from '@/lib/db';
 import { Repository } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 
 export async function findRepositoryById(id: number): Promise<Repository | null> {
   const repos = await query<Repository>('SELECT * FROM repositories WHERE id = ?', [id]);
@@ -54,7 +55,7 @@ export async function updateRepository(
   data: Partial<Omit<Repository, 'id' | 'github_id' | 'created_at' | 'updated_at'>>
 ): Promise<Repository | null> {
   const updates: string[] = [];
-  const values: any[] = [];
+  const values: InValue[] = [];
   
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -178,7 +179,7 @@ export async function getRepositoriesByUser(
     WHERE uo.user_id = ?
   `;
   
-  const params: any[] = [userId];
+  const params: InValue[] = [userId];
   
   if (organizationId) {
     sql += ` AND r.organization_id = ?`;

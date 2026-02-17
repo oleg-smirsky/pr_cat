@@ -5,22 +5,19 @@
 
 import { IGitHubService } from '../../../core/ports'
 import { Organization, Repository, PullRequest, User } from '../../../core/domain/entities'
-import { GitHubClient, createGitHubClient, createGitHubInstallationClient } from '../../../github'
+import { GitHubClient, createGitHubClient } from '../../../github'
 import { createInstallationClient } from '../../../github-app'
+import type { GitHubPullRequest, GitHubRepository, GitHubUser } from '../../../types'
 import crypto from 'crypto'
 import { 
   findOrCreateOrganization, 
   findOrCreateRepository,
-  findUserById,
   createPullRequest,
   findPullRequestByNumber,
   updatePullRequest,
   findReviewByGitHubId,
   createPullRequestReview,
-  setRepositoryTracking,
   findRepositoryById,
-  findRepositoryByGitHubId,
-  addUserToOrganization,
   findOrCreateUserByGitHubId,
   findOrganizationById,
   findRepositoryByFullName,
@@ -36,6 +33,96 @@ import { generateText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createAnthropic } from '@ai-sdk/anthropic'
+
+type GitHubRepositoryOwnerWithAvatar = GitHubRepository['owner'] & {
+  avatar_url?: string
+}
+
+interface GitHubRepositoryDetails extends GitHubRepository {
+  archived?: boolean
+  size?: number
+  stargazers_count?: number
+  forks_count?: number
+  open_issues_count?: number
+  owner: GitHubRepositoryOwnerWithAvatar
+}
+
+interface GitHubPullRequestWithRepo extends GitHubPullRequest {
+  base: GitHubPullRequest['base'] & {
+    repo?: {
+      id: number
+      name: string
+    }
+  }
+}
+
+interface GitHubPullRequestReviewPayload {
+  id: number
+  user: GitHubUser | null
+  state: string
+  body?: string | null
+  submitted_at: string
+}
+
+interface WebhookRepositoryPayload {
+  id: number
+  name: string
+  full_name: string
+  private: boolean
+  owner: {
+    id: number
+    login: string
+    avatar_url?: string
+    name?: string
+  }
+  installation?: {
+    id: number
+  }
+}
+
+interface WebhookPullRequestPayload extends GitHubPullRequestWithRepo {
+  body?: string
+  user: GitHubUser
+}
+
+interface PullRequestWebhookPayload {
+  action: string
+  repository: WebhookRepositoryPayload
+  pull_request: WebhookPullRequestPayload
+  installation?: {
+    id: number
+  }
+}
+
+interface PullRequestReviewWebhookPayload extends PullRequestWebhookPayload {
+  review: {
+    id: number
+    state: string
+    submitted_at: string
+    user: {
+      id: number
+    }
+  }
+}
+
+interface InstallationWebhookPayload {
+  action: string
+  installation: {
+    id: number
+    account: {
+      id: number
+      login: string
+      type: string
+      avatar_url?: string | null
+    }
+  }
+  repositories?: Array<{
+    id: number
+    name: string
+    full_name: string
+    private: boolean
+  }>
+}
 
 export class RealGitHubAPIService implements IGitHubService {
   private client?: GitHubClient
@@ -106,13 +193,13 @@ export class RealGitHubAPIService implements IGitHubService {
       throw new Error(`No repositories found for organization: ${orgLogin}`)
     }
 
-    const owner = firstRepo.owner
+    const owner = firstRepo.owner as GitHubRepositoryOwnerWithAvatar
     return {
       id: owner.id.toString(),
       login: owner.login,
       name: owner.login, // Owner type doesn't have name property
       description: null,
-      avatarUrl: (owner as any).avatar_url || '',
+      avatarUrl: owner.avatar_url || '',
       type: 'Organization' as const,
       htmlUrl: `https://github.com/${owner.login}`,
       isInstalled: false,
@@ -127,7 +214,7 @@ export class RealGitHubAPIService implements IGitHubService {
    */
   async getOrganizationRepositories(
     orgLogin: string,
-    options?: {
+    _options?: {
       type?: 'all' | 'public' | 'private'
       sort?: 'created' | 'updated' | 'pushed' | 'full_name'
       per_page?: number
@@ -140,26 +227,29 @@ export class RealGitHubAPIService implements IGitHubService {
 
     const githubRepos = await this.client.getOrganizationRepositories(orgLogin)
     
-    return githubRepos.map(repo => ({
-      id: repo.id.toString(),
-      name: repo.name,
-      fullName: repo.full_name,
-      description: repo.description || null,
-      htmlUrl: repo.html_url,
-      defaultBranch: (repo as any).default_branch || 'main',
-      isPrivate: (repo as any).private || false,
+    return githubRepos.map(repo => {
+      const repository = repo as GitHubRepositoryDetails
+      return {
+      id: repository.id.toString(),
+      name: repository.name,
+      fullName: repository.full_name,
+      description: repository.description || null,
+      htmlUrl: repository.html_url,
+      defaultBranch: repository.default_branch || 'main',
+      isPrivate: repository.private || false,
       isTracked: false,
-      isArchived: (repo as any).archived || false,
-      language: (repo as any).language || null,
-      size: (repo as any).size || 0,
-      stargazersCount: (repo as any).stargazers_count || 0,
-      forksCount: (repo as any).forks_count || 0,
-      openIssuesCount: (repo as any).open_issues_count || 0,
-      organizationId: repo.owner.id.toString(),
-      createdAt: new Date((repo as any).created_at || Date.now()),
-      updatedAt: new Date((repo as any).updated_at || Date.now()),
-      pushedAt: (repo as any).pushed_at ? new Date((repo as any).pushed_at) : null
-    }))
+      isArchived: repository.archived || false,
+      language: repository.language || null,
+      size: repository.size || 0,
+      stargazersCount: repository.stargazers_count || 0,
+      forksCount: repository.forks_count || 0,
+      openIssuesCount: repository.open_issues_count || 0,
+      organizationId: repository.owner.id.toString(),
+      createdAt: new Date(repository.created_at || Date.now()),
+      updatedAt: new Date(repository.updated_at || Date.now()),
+      pushedAt: repository.pushed_at ? new Date(repository.pushed_at) : null
+      }
+    })
   }
 
   /**
@@ -179,7 +269,7 @@ export class RealGitHubAPIService implements IGitHubService {
       throw new Error('GitHub client not initialized. Access token required.')
     }
 
-    const githubRepo = await this.client.getRepository(owner, repo)
+    const githubRepo = await this.client.getRepository(owner, repo) as GitHubRepositoryDetails
     
     return {
       id: githubRepo.id.toString(),
@@ -187,19 +277,19 @@ export class RealGitHubAPIService implements IGitHubService {
       fullName: githubRepo.full_name,
       description: githubRepo.description || null,
       htmlUrl: githubRepo.html_url,
-      defaultBranch: (githubRepo as any).default_branch || 'main',
-      isPrivate: (githubRepo as any).private || false,
+      defaultBranch: githubRepo.default_branch || 'main',
+      isPrivate: githubRepo.private || false,
       isTracked: false,
-      isArchived: (githubRepo as any).archived || false,
-      language: (githubRepo as any).language || null,
-      size: (githubRepo as any).size || 0,
-      stargazersCount: (githubRepo as any).stargazers_count || 0,
-      forksCount: (githubRepo as any).forks_count || 0,
-      openIssuesCount: (githubRepo as any).open_issues_count || 0,
+      isArchived: githubRepo.archived || false,
+      language: githubRepo.language || null,
+      size: githubRepo.size || 0,
+      stargazersCount: githubRepo.stargazers_count || 0,
+      forksCount: githubRepo.forks_count || 0,
+      openIssuesCount: githubRepo.open_issues_count || 0,
       organizationId: githubRepo.owner.id.toString(),
-      createdAt: new Date((githubRepo as any).created_at || Date.now()),
-      updatedAt: new Date((githubRepo as any).updated_at || Date.now()),
-      pushedAt: (githubRepo as any).pushed_at ? new Date((githubRepo as any).pushed_at) : null
+      createdAt: new Date(githubRepo.created_at || Date.now()),
+      updatedAt: new Date(githubRepo.updated_at || Date.now()),
+      pushedAt: githubRepo.pushed_at ? new Date(githubRepo.pushed_at) : null
     }
   }
 
@@ -261,7 +351,7 @@ export class RealGitHubAPIService implements IGitHubService {
       throw new Error('GitHub client not initialized. Access token required.')
     }
 
-    const reviews = await this.client.getPullRequestReviews(owner, repo, pullNumber)
+    const reviews = await this.client.getPullRequestReviews(owner, repo, pullNumber) as GitHubPullRequestReviewPayload[]
     
     return reviews
       .filter(review => review.user) // Only include reviews with user data
@@ -273,7 +363,7 @@ export class RealGitHubAPIService implements IGitHubService {
           name: review.user!.name || review.user!.login,
           email: review.user!.email || null,
           avatarUrl: review.user!.avatar_url || '',
-          htmlUrl: (review.user as any).html_url || `https://github.com/${review.user!.login}`,
+          htmlUrl: review.user!.html_url || `https://github.com/${review.user!.login}`,
           type: 'User' as const,
           isNewUser: false,
           hasGithubApp: false,
@@ -281,8 +371,8 @@ export class RealGitHubAPIService implements IGitHubService {
           updatedAt: new Date()
         },
         state: this.mapReviewState(review.state),
-        body: (review as any).body || '',
-        submittedAt: new Date((review as any).submitted_at)
+        body: review.body || '',
+        submittedAt: new Date(review.submitted_at)
       }))
   }
 
@@ -506,7 +596,7 @@ export class RealGitHubAPIService implements IGitHubService {
    */
   async processWebhookEvent(
     event: string,
-    payload: any
+    payload: unknown
   ): Promise<{
     processed: boolean
     actions: string[]
@@ -528,18 +618,18 @@ export class RealGitHubAPIService implements IGitHubService {
     try {
       switch (event) {
         case 'pull_request':
-          await this.handlePullRequestWebhook(payload)
-          actions.push(`Processed pull_request.${payload.action}`)
+          await this.handlePullRequestWebhook(payload as PullRequestWebhookPayload)
+          actions.push(`Processed pull_request.${this.getWebhookAction(payload)}`)
           break
           
         case 'pull_request_review':
-          await this.handlePullRequestReviewWebhook(payload)
-          actions.push(`Processed pull_request_review.${payload.action}`)
+          await this.handlePullRequestReviewWebhook(payload as PullRequestReviewWebhookPayload)
+          actions.push(`Processed pull_request_review.${this.getWebhookAction(payload)}`)
           break
           
         case 'installation':
-          await this.handleInstallationWebhook(payload)
-          actions.push(`Processed installation.${payload.action}`)
+          await this.handleInstallationWebhook(payload as InstallationWebhookPayload)
+          actions.push(`Processed installation.${this.getWebhookAction(payload)}`)
           break
           
         case 'ping':
@@ -564,7 +654,7 @@ export class RealGitHubAPIService implements IGitHubService {
   /**
    * Handle pull request webhook events
    */
-  private async handlePullRequestWebhook(payload: any): Promise<void> {
+  private async handlePullRequestWebhook(payload: PullRequestWebhookPayload): Promise<void> {
     const { action, repository, pull_request: pr } = payload
 
     console.log(`[Webhook] Processing PR #${pr.number} action=${action} repo=${repository.full_name}`)
@@ -588,7 +678,7 @@ export class RealGitHubAPIService implements IGitHubService {
       // Update existing PR
       await updatePullRequest(existingPR.id, {
         title: pr.title,
-        description: pr.body,
+        description: pr.body ?? null,
         state: prState,
         updated_at: pr.updated_at,
         closed_at: pr.closed_at,
@@ -630,7 +720,7 @@ export class RealGitHubAPIService implements IGitHubService {
         repository_id: repoInDb.id,
         number: pr.number,
         title: pr.title,
-        description: pr.body,
+        description: pr.body ?? null,
         author_id: author.id,
         state: prState,
         created_at: pr.created_at,
@@ -661,11 +751,11 @@ export class RealGitHubAPIService implements IGitHubService {
   /**
    * Handle pull request review webhook events
    */
-  private async handlePullRequestReviewWebhook(payload: any): Promise<void> {
+  private async handlePullRequestReviewWebhook(payload: PullRequestReviewWebhookPayload): Promise<void> {
     const { repository, pull_request, review } = payload
 
     // Find repository and PR
-    const repoInDb = await this.findRepositoryByFullName(repository.full_name)
+    const repoInDb = await findRepositoryByFullName(repository.full_name)
     if (!repoInDb) return
 
     const existingPR = await findPullRequestByNumber(repoInDb.id, pull_request.number)
@@ -693,7 +783,7 @@ export class RealGitHubAPIService implements IGitHubService {
   /**
    * Handle installation webhook events
    */
-  private async handleInstallationWebhook(payload: any): Promise<void> {
+  private async handleInstallationWebhook(payload: InstallationWebhookPayload): Promise<void> {
     const { action, installation, repositories } = payload
     const account = installation.account
 
@@ -705,7 +795,7 @@ export class RealGitHubAPIService implements IGitHubService {
     const orgGitHubId = account.id
     const orgLogin = account.login
     const installationId = installation.id
-    const orgAvatarUrl = account.avatar_url || null
+    const orgAvatarUrl: string | null = account.avatar_url ?? null
 
     console.log(`[Webhook] Installation ${action} for org ${orgLogin} (${orgGitHubId}), installation ID: ${installationId}`)
 
@@ -791,11 +881,11 @@ export class RealGitHubAPIService implements IGitHubService {
    * Fetch additional PR data including AI categorization
    */
   private async fetchAdditionalPRData(
-    repository: any, 
-    pr: any, 
+    repository: WebhookRepositoryPayload, 
+    pr: WebhookPullRequestPayload, 
     prDbId: number,
     organizationId: number,
-    fullPayload?: any
+    fullPayload?: PullRequestWebhookPayload
   ): Promise<void> {
     console.log(`[Webhook] Fetching additional data for PR #${pr.number} in org ${organizationId}`)
 
@@ -909,8 +999,15 @@ export class RealGitHubAPIService implements IGitHubService {
       let diff: string
       try {
         diff = await githubClient.getPullRequestDiff(repository.owner.login, repository.name, pr.number)
-      } catch (error: any) {
-        if (error.message?.includes('expired') || error.message?.includes('invalid') || error.status === 401) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : ''
+        const status = typeof error === 'object' &&
+          error !== null &&
+          'status' in error &&
+          typeof (error as { status?: unknown }).status === 'number'
+          ? (error as { status: number }).status
+          : undefined
+        if (message.includes('expired') || message.includes('invalid') || status === 401) {
           console.warn(`[Webhook] Token expired, retrying with fresh client`)
           try {
             githubClient = await createInstallationClient(installationId)
@@ -1019,7 +1116,7 @@ ${diff}`
   /**
    * Helper methods
    */
-  private mapGitHubPRToDomain(githubPR: any): PullRequest {
+  private mapGitHubPRToDomain(githubPR: GitHubPullRequestWithRepo): PullRequest {
     const state = githubPR.merged_at 
       ? 'merged' 
       : githubPR.state === 'closed' ? 'closed' : 'open'
@@ -1061,19 +1158,15 @@ ${diff}`
     }
   }
 
-  private async findRepositoryByFullName(fullName: string): Promise<any> {
-    try {
-      return await findRepositoryByFullName && await findRepositoryByFullName(fullName)
-    } catch (error) {
-      return null
+  private getWebhookAction(payload: unknown): string {
+    if (
+      typeof payload === 'object' &&
+      payload !== null &&
+      'action' in payload &&
+      typeof (payload as { action?: unknown }).action === 'string'
+    ) {
+      return (payload as { action: string }).action
     }
-  }
-
-  private async findOrganizationByGitHubId(githubId: number): Promise<any> {
-    try {
-      return await findOrganizationById && await findOrganizationById(githubId)
-    } catch (error) {
-      return null
-    }
+    return 'unknown'
   }
 }

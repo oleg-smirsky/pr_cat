@@ -48,14 +48,7 @@ export function TeamPerformanceSummary({ className = "" }: TeamPerformanceSummar
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  // Fetch team metrics when team or time range changes
-  React.useEffect(() => {
-    if (selectedOrganization) {
-      fetchTeamMetrics();
-    }
-  }, [selectedTeam, selectedOrganization, timeRange]);
-
-  const fetchTeamMetrics = async () => {
+  const fetchTeamMetrics = React.useCallback(async () => {
     if (!selectedOrganization) {
       setTeamMetrics(null);
       return;
@@ -98,7 +91,12 @@ export function TeamPerformanceSummary({ className = "" }: TeamPerformanceSummar
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedOrganization, selectedTeam, timeRange]);
+
+  // Fetch team metrics when team or time range changes
+  React.useEffect(() => {
+    void fetchTeamMetrics();
+  }, [fetchTeamMetrics]);
 
   if (!selectedOrganization) {
     return (
@@ -323,7 +321,7 @@ export function TeamPerformanceSummary({ className = "" }: TeamPerformanceSummar
                 <div>
                   <p className="font-medium mb-1">Focus Area</p>
                   <p className="text-muted-foreground">
-                    This team's {getTimeRangeDisplay().toLowerCase()} performance shows 
+                    This team&apos;s {getTimeRangeDisplay().toLowerCase()} performance shows 
                     {teamMetrics.avgTeamCycleTime > 48 ? " opportunities to improve delivery speed" : " efficient delivery cycles"}.
                   </p>
                 </div>
@@ -333,7 +331,7 @@ export function TeamPerformanceSummary({ className = "" }: TeamPerformanceSummar
                 <div>
                   <p className="font-medium mb-1">Collaboration</p>
                   <p className="text-muted-foreground">
-                    The team's collaboration index of {Math.round(teamMetrics.collaborationIndex * 10) / 10} 
+                    The team&apos;s collaboration index of {Math.round(teamMetrics.collaborationIndex * 10) / 10} 
                     {teamMetrics.collaborationIndex > 1.5 ? " indicates strong peer review practices" : " suggests more cross-team reviews could help"}.
                   </p>
                 </div>

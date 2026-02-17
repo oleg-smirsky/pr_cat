@@ -2,7 +2,7 @@
 
 import React from "react";
 import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle, CardAction } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useMetricsSummary } from "@/hooks/use-metrics";
 import { useTeamFilterParams } from "@/hooks/use-team-filter";

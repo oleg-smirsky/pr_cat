@@ -1,5 +1,4 @@
 // Unit tests for team repository functions
-import { describe, it, expect, beforeEach } from '@jest/globals';
 
 // Mock the db module BEFORE importing anything that uses it
 jest.mock('@/lib/db', () => ({
@@ -362,7 +361,7 @@ describe('Team Repository', () => {
 
     it('should limit results to 20', async () => {
       mockQuery.mockResolvedValueOnce([]);
-      const result = await searchUsers(1, 'test');
+      await searchUsers(1, 'test');
       
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('LIMIT 20'),

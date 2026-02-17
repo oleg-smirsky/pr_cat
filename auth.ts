@@ -1,9 +1,8 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
 import { NextAuthConfig } from "next-auth"
-import { findUserByEmail, createUser, updateUser, getUserOrganizations, findUserById } from "@/lib/repositories/user-repository"
+import { getUserOrganizations, findUserById } from "@/lib/repositories/user-repository"
 import { createGitHubClient } from "@/lib/github"
-import type { JWT } from "next-auth/jwt"
 import { execute } from "@/lib/db"
 import { GitHubService } from "@/lib/services"
 
@@ -53,28 +52,30 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    login?: string;
-    html_url?: string;
-    avatar_url?: string;
-    accessToken?: string;
-  }
-}
-
 // Don't run migrations automatically at startup to avoid Edge Runtime errors
 // Instead, we'll run them in API routes that are Node.js compatible
 
-interface GitHubProfile {
-  login?: string;
-  html_url?: string;
-  avatar_url?: string;
+type SessionOrganization = {
+  id: number;
+  github_id: number;
+  name: string;
+  avatar_url: string | null;
+};
+
+type UpsertUserData = {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+};
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 // Utility functions for cleaner callbacks
 async function getOrganizationsForUser(userId: string, accessToken?: string) {
   try {
-    let organizations = await getUserOrganizations(userId)
+    const organizations = await getUserOrganizations(userId)
     
     if ((!organizations || organizations.length === 0) && accessToken) {
       const githubClient = createGitHubClient(accessToken)
@@ -96,7 +97,7 @@ async function getOrganizationsForUser(userId: string, accessToken?: string) {
   }
 }
 
-async function setSessionFlags(userId: string, organizations?: any[]) {
+async function setSessionFlags(userId: string, organizations?: SessionOrganization[]) {
   try {
     const user = await findUserById(userId)
     const newUser = user?.created_at 
@@ -112,7 +113,7 @@ async function setSessionFlags(userId: string, organizations?: any[]) {
   }
 }
 
-async function upsertUser(githubId: string, userData: any) {
+async function upsertUser(githubId: string, userData: UpsertUserData) {
   const { name, email, image } = userData
   
   const { rowsAffected } = await execute(
@@ -123,7 +124,7 @@ async function upsertUser(githubId: string, userData: any) {
        email = excluded.email, 
        image = excluded.image, 
        updated_at = datetime("now")`,
-    [githubId, name, email, image]
+    [githubId, name ?? null, email ?? null, image ?? null]
   )
   
   return rowsAffected > 0
@@ -181,9 +182,9 @@ export const config = {
       if (isDemoMode) {
         // Demo mode: use simple session without database calls
         session.user.id = token.sub;
-        session.user.login = token.login || 'demo-user';
-        session.user.html_url = token.html_url || 'https://github.com/demo-user';
-        session.user.avatar_url = token.avatar_url || '/api/placeholder/avatar/demo';
+        session.user.login = asOptionalString(token.login) ?? 'demo-user';
+        session.user.html_url = asOptionalString(token.html_url) ?? 'https://github.com/demo-user';
+        session.user.avatar_url = asOptionalString(token.avatar_url) ?? '/api/placeholder/avatar/demo';
         session.organizations = [];
         session.newUser = false;
         session.hasGithubApp = false;
@@ -192,16 +193,17 @@ export const config = {
 
       // Real mode: full session handling
       session.user.id = token.sub;
-      session.user.login = token.login;
-      session.user.html_url = token.html_url;
-      session.user.avatar_url = token.avatar_url;
+      session.user.login = asOptionalString(token.login);
+      session.user.html_url = asOptionalString(token.html_url);
+      session.user.avatar_url = asOptionalString(token.avatar_url);
       
-      if (token.accessToken) {
-        session.accessToken = token.accessToken as string;
+      const accessToken = asOptionalString(token.accessToken);
+      if (accessToken && accessToken.length > 0) {
+        session.accessToken = accessToken;
         
         // Safely fetch organizations with error handling to prevent session failures
         try {
-          session.organizations = await getOrganizationsForUser(session.user.id, session.accessToken);
+          session.organizations = await getOrganizationsForUser(session.user.id, accessToken);
         } catch (error) {
           console.error("Session callback: Failed to fetch organizations", error);
           // Degrade gracefully - set empty organizations array
@@ -226,13 +228,13 @@ export const config = {
     async jwt({ token, account, profile }) {
       if (profile && typeof profile.id !== 'undefined' && profile.id !== null) {
         token.sub = profile.id.toString();
-        const gh = profile as GitHubProfile;
-        token.login = gh.login;
-        token.html_url = gh.html_url;
-        token.avatar_url = gh.avatar_url;
+        const gh = profile as Record<string, unknown>;
+        token.login = asOptionalString(gh.login);
+        token.html_url = asOptionalString(gh.html_url);
+        token.avatar_url = asOptionalString(gh.avatar_url);
       }
       if (account) {
-        token.accessToken = account.access_token;
+        token.accessToken = asOptionalString(account.access_token);
       }
       return token;
     },
@@ -256,14 +258,17 @@ export const config = {
       }
 
       const githubId = profile.id.toString();
+      const profileData = profile as Record<string, unknown>;
+      const profileLogin = asOptionalString(profileData.login);
+      const profileAvatarUrl = asOptionalString(profileData.avatar_url);
 
       try {
         // Upsert user
         await upsertUser(githubId, {
-          name: user.name ?? profile.login ?? null,
+          name: user.name ?? profileLogin ?? null,
           // Email may be null/undefined if not provided by GitHub; allow null in DB
           email: user.email ?? null,
-          image: user.image ?? profile.avatar_url ?? null
+          image: user.image ?? profileAvatarUrl ?? null
         });
         
         user.id = githubId;

@@ -1,5 +1,6 @@
 import { query } from '@/lib/db';
 import { Repository } from '@/lib/types';
+import type { InValue } from '@libsql/client';
 import {
   findRepositoryById,
   findRepositoryByGitHubId,
@@ -8,6 +9,13 @@ import {
   updateRepository,
   getOrganizationRepositories,
 } from '@/lib/repositories';
+
+type OrganizationRow = {
+  id: number;
+  name: string;
+  github_id: number;
+  avatar_url: string | null;
+};
 
 /**
  * Centralized service for repository access with proper access control
@@ -34,7 +42,7 @@ export class RepositoryService {
     const { includeTrackedOnly = false, orderBy = 'name', orderDir = 'ASC' } = options;
     
     let sql = `SELECT * FROM repositories WHERE organization_id = ?`;
-    const params: any[] = [organizationId];
+    const params: InValue[] = [organizationId];
     
     if (includeTrackedOnly) {
       sql += ` AND is_tracked = 1`;
@@ -60,7 +68,7 @@ export class RepositoryService {
     const { includeTrackedOnly = false, orderBy = 'name', orderDir = 'ASC' } = options;
     
     let sql = `SELECT * FROM repositories`;
-    const params: any[] = [];
+    const params: InValue[] = [];
     
     if (includeTrackedOnly) {
       sql += ` WHERE is_tracked = 1`;
@@ -83,10 +91,8 @@ export class RepositoryService {
       orderDir?: 'ASC' | 'DESC';
     } = {}
   ): Promise<{organization: {id: number, name: string}, repositories: Repository[]}[]> {
-    const { includeTrackedOnly = false, orderBy = 'name', orderDir = 'ASC' } = options;
-    
     // First get all organizations the user has access to
-    const orgs = await query(`
+    const orgs = await query<OrganizationRow>(`
       SELECT o.id, o.name, o.github_id, o.avatar_url
       FROM organizations o
       JOIN user_organizations uo ON o.id = uo.organization_id
@@ -129,7 +135,7 @@ export class RepositoryService {
     } = {}
   ): Promise<{organization: {id: number, name: string, github_id: number, avatar_url: string | null}, repositories: Repository[]} | null> {
     // Find the specific organization by its GitHub ID and ensure the user has access
-    const orgs = await query(`
+    const orgs = await query<OrganizationRow>(`
       SELECT o.id, o.name, o.github_id, o.avatar_url
       FROM organizations o
       JOIN user_organizations uo ON o.id = uo.organization_id

@@ -9,13 +9,12 @@ import {
   findReviewByGitHubId,
   createPullRequestReview,
   setRepositoryTracking,
-  findRepositoryById,
   findRepositoryByGitHubId,
   addUserToOrganization,
   findOrCreateUserByGitHubId,
   findOrganizationById
 } from '@/lib/repositories';
-import { GitHubRepository, GitHubPullRequest, GitHubOrganization, GitHubUser, PRReview, Repository } from '@/lib/types';
+import { GitHubRepository, GitHubPullRequest, GitHubOrganization, GitHubUser, PRReview } from '@/lib/types';
 import { createInstallationClient } from "@/lib/github-app";
 
 export class GitHubService {
@@ -119,7 +118,7 @@ export class GitHubService {
       
       // Store members in the database
       await Promise.all(
-        members.map(async (member: any) => {
+        members.map(async (member) => {
           // Ensure user exists in our database
           const dbUser = await findOrCreateUserByGitHubId({
             id: member.id.toString(),

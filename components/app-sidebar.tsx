@@ -10,7 +10,6 @@ import {
   IconLifebuoy,
   IconListDetails,
   IconSettings,
-  IconUsers,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -35,25 +34,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Dashboard",
       url: "/dashboard",
       icon: IconDashboard,
-      isActive: pathname === "/dashboard"
     },
     {
       title: "Lifecycle",
       url: "/dashboard/lifecycle",
       icon: IconListDetails,
-      isActive: pathname === "/dashboard/lifecycle"
     },
     {
       title: "Analytics",
       url: "/dashboard/analytics",
       icon: IconChartBar,
-      isActive: pathname === "/dashboard/analytics"
     },
     {
       title: "Repositories",
       url: "/dashboard/projects",
       icon: IconFolder,
-      isActive: pathname === "/dashboard/projects"
     },
   ]
 
@@ -62,13 +57,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Settings",
       url: "/dashboard/settings",
       icon: IconSettings,
-      isActive: pathname === "/dashboard/settings"
     },
     {
       title: "Get Help",
       url: "/dashboard/help",
       icon: IconLifebuoy,
-      isActive: pathname === "/dashboard/help"
     },
   ]
 
@@ -89,8 +82,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
-        <NavSecondary items={navSecondary} className="mt-auto" />
+        <NavMain items={navMain} currentPath={pathname} />
+        <NavSecondary items={navSecondary} currentPath={pathname} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

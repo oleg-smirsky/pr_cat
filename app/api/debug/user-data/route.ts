@@ -41,25 +41,25 @@ export async function GET() {
     const organizations = await getUserOrganizations(user.id);
     
     // Check if user has any organization links in user_organizations table
-    const userOrgs = await query(
+    const userOrgs = await query<Record<string, unknown>>(
       'SELECT * FROM user_organizations WHERE user_id = ?',
       [user.id]
     );
     
     // Check all organizations in the database
-    const allOrgs = await query('SELECT * FROM organizations');
+    const allOrgs = await query<Record<string, unknown>>('SELECT * FROM organizations');
     
     // Check if organizations table exists
-    const tableCheck = await query(
+    const tableCheck = await query<Record<string, unknown>>(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='organizations'"
     );
     
     // Check database schema for organizations and user_organizations
     const orgSchema = tableCheck.length > 0 ? 
-      await query("PRAGMA table_info(organizations)") : [];
+      await query<Record<string, unknown>>("PRAGMA table_info(organizations)") : [];
     
     const userOrgSchema = tableCheck.length > 0 ? 
-      await query("PRAGMA table_info(user_organizations)") : [];
+      await query<Record<string, unknown>>("PRAGMA table_info(user_organizations)") : [];
     
     return NextResponse.json({
       userInfo: {

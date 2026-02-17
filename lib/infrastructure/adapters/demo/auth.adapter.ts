@@ -30,7 +30,7 @@ export class DemoAuthService implements IAuthService {
     return DEMO_USERS.find(user => user.id === userId) || null
   }
 
-  async getUserOrganizations(userId: string): Promise<Organization[]> {
+  async getUserOrganizations(_userId: string): Promise<Organization[]> {
     // In demo mode, all users have access to all demo organizations
     return DEMO_ORGANIZATIONS
   }

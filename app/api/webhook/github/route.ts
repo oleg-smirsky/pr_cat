@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           eventType: eventType || 'unknown',
           payload
         }
-      } catch (error) {
+      } catch {
         return NextResponse.json(
           { error: 'Invalid JSON payload' }, 
           { status: 400 }

@@ -31,8 +31,6 @@ export async function GET() {
     }
     
     const githubService = new GitHubService(session.accessToken);
-    // Get the current user
-    const githubUser = await githubService.getCurrentUser();
     // Get user's repositories
     const repositories = await githubService.getCurrentUserRepositories();
     

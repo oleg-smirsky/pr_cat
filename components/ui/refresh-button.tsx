@@ -36,6 +36,7 @@ export function RefreshButton({ variant = "outline", size = "sm", className }: R
       size={size}
       onClick={handleRefresh}
       disabled={isRefreshing}
+      aria-label={isRefreshing ? "Refreshing metrics" : "Refresh metrics"}
       className={className}
     >
       <IconRefresh className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />

@@ -1,5 +1,4 @@
 // Performance tests for database queries, particularly N+1 query issues
-import { describe, it, expect, beforeEach } from '@jest/globals';
 
 // Mock the db module BEFORE importing anything that uses it
 jest.mock('@/lib/db', () => ({
@@ -20,6 +19,7 @@ import { createMockTeams } from '../fixtures';
 const mockQuery = query as jest.Mock;
 const mockExecute = execute as jest.Mock;
 const mockTransaction = transaction as jest.Mock;
+type TransactionClient = Parameters<Parameters<typeof transaction>[0]>[0];
 
 describe('Database Performance Tests', () => {
   beforeEach(() => {
@@ -279,7 +279,7 @@ describe('Database Performance Tests', () => {
       mockExecute.mockClear();
       
       // Good: Batch in transaction
-      await mockTransaction(async (tx) => {
+      await mockTransaction(async (tx: TransactionClient) => {
         for (const id of teamIds) {
           await tx.execute('UPDATE teams SET updated_at = ? WHERE id = ?', ['2024-01-01', id]);
         }
