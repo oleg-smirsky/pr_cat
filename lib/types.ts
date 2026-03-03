@@ -206,4 +206,34 @@ export interface GitHubPullRequest {
     ref: string;
     sha: string;
   };
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Commit {
+  id: number;
+  sha: string;
+  repository_id: number;
+  author_id: string | null;
+  author_email: string;
+  author_name: string;
+  message: string;
+  committed_at: string;
+  additions: number;
+  deletions: number;
+  pull_request_id: number | null;
+  project_id: number | null;
+  jira_ticket_id: string | null;
+  created_at: string;
+}
+
+export interface CommitBranch {
+  commit_id: number;
+  branch_name: string;
 } 

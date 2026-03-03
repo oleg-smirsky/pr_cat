@@ -1,5 +1,5 @@
 // Test fixtures for common data structures
-import { User, Organization, Team, TeamMember, Repository, PullRequest, Category } from '@/lib/types';
+import { User, Organization, Team, TeamMember, Repository, PullRequest, Category, Commit } from '@/lib/types';
 
 export const mockUser: User = {
   id: 'user-123',
@@ -84,6 +84,23 @@ export const mockCategory: Category = {
   is_default: false,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
+};
+
+export const mockCommit: Commit = {
+  id: 1,
+  sha: 'abc123def456',
+  repository_id: 1,
+  author_id: 'user-123',
+  author_email: 'test@example.com',
+  author_name: 'Test User',
+  message: 'BFW-1234 fix: resolve sensor calibration issue',
+  committed_at: '2025-03-01T10:00:00Z',
+  additions: 42,
+  deletions: 10,
+  pull_request_id: null,
+  project_id: null,
+  jira_ticket_id: 'BFW-1234',
+  created_at: '2025-03-01T10:00:00Z',
 };
 
 // Helper to create multiple mock items
