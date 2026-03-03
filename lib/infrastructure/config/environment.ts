@@ -45,21 +45,28 @@ export class EnvironmentConfig {
   }
 
   private loadConfiguration(): AppConfig {
+    // Local file: URLs don't need an auth token
+    const isLocalDb = process.env.TURSO_URL?.startsWith('file:')
     const hasDatabase = Boolean(
-      process.env.TURSO_URL && 
-      process.env.TURSO_TOKEN
+      process.env.TURSO_URL &&
+      (isLocalDb || process.env.TURSO_TOKEN)
     )
-    
+
     const hasGitHubApp = Boolean(
-      process.env.GITHUB_APP_ID && 
+      process.env.GITHUB_APP_ID &&
       process.env.GITHUB_APP_PRIVATE_KEY
     )
-    
+
+    // Token mode: PAT-based auth replaces both OAuth and GitHub App
+    const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
+      (!process.env.GITHUB_OAUTH_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID === 'demo-client-id')
+
     // Force demo mode if explicitly set
     const forceDemoMode = process.env.DEMO_MODE === 'true'
-    
+
     // Auto-detect demo mode if missing required services
-    const isDemoMode = forceDemoMode || !hasDatabase || !hasGitHubApp
+    // Token mode with a database is NOT demo mode
+    const isDemoMode = forceDemoMode || !hasDatabase || (!hasGitHubApp && !isTokenMode)
     
     const config: AppConfig = {
       mode: isDemoMode ? 'demo' : 'production',
