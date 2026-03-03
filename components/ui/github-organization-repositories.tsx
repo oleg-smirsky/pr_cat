@@ -42,7 +42,7 @@ export function GitHubOrganizationRepositories({
   organizationId,
   organizationName,
 }: GitHubOrganizationRepositoriesProps) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [isSyncingSpecific, setIsSyncingSpecific] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,9 +92,11 @@ export function GitHubOrganizationRepositories({
     }
   }, [organizationId, organizationName]);
 
+  const isTokenMode = !!(session as any)?.isTokenMode;
+
   const fetchAccessibleRepositories = useCallback(async () => {
-    if (!organizationName) return;
-    
+    if (!organizationName || isTokenMode) return;
+
     setIsLoadingAccessible(true);
     try {
       const response = await fetch(`/api/github/organizations/${organizationName}/accessible-repositories`);
@@ -102,7 +104,7 @@ export function GitHubOrganizationRepositories({
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch accessible repositories');
       }
-      
+
       const data = await response.json();
       if (data.accessibleRepositories) {
         setAccessibleRepos(new Set(data.accessibleRepositories));
@@ -112,7 +114,14 @@ export function GitHubOrganizationRepositories({
     } finally {
       setIsLoadingAccessible(false);
     }
-  }, [organizationName]);
+  }, [organizationName, isTokenMode]);
+
+  // Token mode: mark all loaded repos as accessible
+  useEffect(() => {
+    if (isTokenMode && repositories.length > 0) {
+      setAccessibleRepos(new Set(repositories.map(r => r.full_name)));
+    }
+  }, [isTokenMode, repositories]);
 
   const syncSpecificOrganizationRepositories = async () => {
     setIsSyncingSpecific(true);

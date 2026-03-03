@@ -50,6 +50,7 @@ declare module "next-auth" {
     // Added flags for onboarding and setup status
     newUser?: boolean;
     hasGithubApp?: boolean;
+    isTokenMode?: boolean;
   }
 }
 
@@ -251,7 +252,9 @@ export const config = {
         session.newUser = false;
         session.hasGithubApp = false;
       }
-      
+
+      session.isTokenMode = isTokenMode;
+
       return session;
     },
     async jwt({ token, account, profile, user }) {

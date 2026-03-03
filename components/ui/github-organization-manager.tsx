@@ -44,8 +44,8 @@ export function GitHubOrganizationManager({
         const currentSelectedOrgInNewList = fetchedOrgs.find(
           (o: OrganizationWithInstallation) => o.github_id === selectedOrganization.github_id
         );
-        if (!currentSelectedOrgInNewList || !currentSelectedOrgInNewList.hasAppInstalled) {
-          if (selectedOrganization.hasAppInstalled || !currentSelectedOrgInNewList) { 
+        if (!currentSelectedOrgInNewList || !currentSelectedOrgInNewList.isGithubConnected) {
+          if (selectedOrganization.isGithubConnected || !currentSelectedOrgInNewList) { 
             onOrganizationSelected(null);
           }
         } 
@@ -94,10 +94,10 @@ export function GitHubOrganizationManager({
   };
 
   const handleSelectOrganization = (org: OrganizationWithInstallation) => {
-    if (org.hasAppInstalled) {
+    if (org.isGithubConnected) {
       onOrganizationSelected(org);
     } else {
-      toast.info("Please install the GitHub App for this organization to select it.");
+      toast.info("GitHub is not connected for this organization.");
     }
   };
 
@@ -136,7 +136,7 @@ export function GitHubOrganizationManager({
               <GitHubOrgSetupItem 
                 key={org.github_id} 
                 org={org} 
-                isSelected={selectedOrganization?.github_id === org.github_id && org.hasAppInstalled}
+                isSelected={selectedOrganization?.github_id === org.github_id && org.isGithubConnected}
                 onSelectOrganization={handleSelectOrganization}
                 onAppInstallInitiated={() => setTimeout(() => handleRefresh(), 3000)}
               />

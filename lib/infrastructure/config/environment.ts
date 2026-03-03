@@ -8,6 +8,7 @@ export interface AppConfig {
   isDemoMode: boolean
   hasDatabase: boolean
   hasGitHubApp: boolean
+  hasGitHubToken: boolean
   database?: {
     url: string
     token?: string
@@ -68,11 +69,14 @@ export class EnvironmentConfig {
     // Token mode with a database is NOT demo mode
     const isDemoMode = forceDemoMode || !hasDatabase || (!hasGitHubApp && !isTokenMode)
     
+    const hasGitHubToken = Boolean(process.env.GITHUB_TOKEN)
+
     const config: AppConfig = {
       mode: isDemoMode ? 'demo' : 'production',
       isDemoMode,
       hasDatabase,
-      hasGitHubApp
+      hasGitHubApp,
+      hasGitHubToken,
     }
 
     // Add database config if available
@@ -124,7 +128,7 @@ export class EnvironmentConfig {
       case 'database':
         return this._config.hasDatabase
       case 'github':
-        return this._config.hasGitHubApp
+        return this._config.hasGitHubApp || this._config.hasGitHubToken
       case 'auth':
         return Boolean(this._config.auth)
       default:
