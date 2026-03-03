@@ -166,9 +166,9 @@ const MIGRATIONS = [
     version: 2,
     name: 'add_ai_status_columns',
     sql: `
-      -- Add AI processing status columns to pull_requests table
-      ALTER TABLE pull_requests ADD COLUMN ai_status TEXT DEFAULT 'pending';
-      ALTER TABLE pull_requests ADD COLUMN error_message TEXT;
+      -- These columns are already in the initial CREATE TABLE (migration 1).
+      -- Kept as a no-op to preserve version history for existing databases.
+      SELECT 1;
     `
   },
   {
