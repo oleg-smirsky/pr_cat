@@ -119,12 +119,12 @@ async function upsertUser(githubId: string, userData: UpsertUserData) {
   
   const { rowsAffected } = await execute(
     `INSERT INTO users (id, name, email, image, created_at, updated_at) 
-     VALUES (?, ?, ?, ?, datetime("now"), datetime("now")) 
-     ON CONFLICT(id) DO UPDATE SET 
-       name = excluded.name, 
-       email = excluded.email, 
-       image = excluded.image, 
-       updated_at = datetime("now")`,
+     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       email = excluded.email,
+       image = excluded.image,
+       updated_at = datetime('now')`,
     [githubId, name ?? null, email ?? null, image ?? null]
   )
   

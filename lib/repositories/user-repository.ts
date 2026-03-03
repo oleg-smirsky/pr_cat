@@ -72,7 +72,7 @@ export async function updateUser(id: string, data: Partial<Omit<User, 'id' | 'cr
     return findUserById(id);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,

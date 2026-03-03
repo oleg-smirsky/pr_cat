@@ -142,7 +142,7 @@ export async function updateTeam(
     return findTeamById(id);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE teams SET ${updates.join(', ')} WHERE id = ?`,
@@ -216,7 +216,7 @@ export async function updateTeamMember(
     return findTeamMember(teamId, userId);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE team_members SET ${updates.join(', ')} WHERE team_id = ? AND user_id = ?`,
