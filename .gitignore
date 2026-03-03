@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local database
+local.db
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -41,3 +44,6 @@ yarn-error.log*
 next-env.d.ts
 envbackup.txt
 refactor.md
+
+# local cache (fetch-commits output)
+.cache/
