@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import GitHub from "next-auth/providers/github"
+import Credentials from "next-auth/providers/credentials"
 import { NextAuthConfig } from "next-auth"
 import { getUserOrganizations, findUserById } from "@/lib/repositories/user-repository"
 import { createGitHubClient } from "@/lib/github"
@@ -130,20 +131,43 @@ async function upsertUser(githubId: string, userData: UpsertUserData) {
   return rowsAffected > 0
 }
 
+// Token mode: activates when GITHUB_TOKEN is set and OAuth is not configured
+const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
+  (!process.env.GITHUB_OAUTH_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID === 'demo-client-id');
+
+const tokenModeProvider = Credentials({
+  credentials: {},
+  authorize: async () => {
+    const pat = process.env.GITHUB_TOKEN;
+    if (!pat) return null;
+    try {
+      const client = createGitHubClient(pat);
+      const ghUser = await client.getCurrentUser();
+      return {
+        id: ghUser.id.toString(),
+        name: ghUser.name || ghUser.login,
+        email: ghUser.email || null,
+        image: ghUser.avatar_url,
+      };
+    } catch (error) {
+      console.error('Token mode: PAT validation failed', error);
+      return null;
+    }
+  },
+});
+
+const oauthProvider = GitHub({
+  clientId: process.env.GITHUB_OAUTH_CLIENT_ID || 'demo-client-id',
+  clientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET || 'demo-client-secret',
+  authorization: {
+    params: {
+      scope: 'read:user user:email repo read:org',
+    },
+  },
+});
+
 export const config = {
-  providers: [
-    GitHub({
-      clientId: process.env.GITHUB_OAUTH_CLIENT_ID || 'demo-client-id',
-      clientSecret: process.env.GITHUB_OAUTH_CLIENT_SECRET || 'demo-client-secret',
-      authorization: {
-        params: {
-          scope: 'read:user user:email repo read:org',
-        },
-      },
-      // Try without explicit PKCE configuration
-      // checks: ["pkce"],
-    }),
-  ],
+  providers: isTokenMode ? [tokenModeProvider] : [oauthProvider],
   pages: {
     signIn: "/sign-in",
     signOut: "/",
@@ -152,19 +176,23 @@ export const config = {
   callbacks: {
     authorized({ request, auth }) {
       const { pathname } = request.nextUrl;
-      
-      // Allow dashboard access in demo mode (when no real GitHub credentials configured)
+
       if (pathname.startsWith("/dashboard")) {
-        const hasGitHubCredentials = process.env.GITHUB_OAUTH_CLIENT_ID && 
-                                     process.env.GITHUB_OAUTH_CLIENT_SECRET && 
+        // Token mode: require authentication (handled by CredentialsProvider)
+        if (isTokenMode) {
+          return !!auth;
+        }
+
+        // Demo mode: allow dashboard access without authentication
+        const hasGitHubCredentials = process.env.GITHUB_OAUTH_CLIENT_ID &&
+                                     process.env.GITHUB_OAUTH_CLIENT_SECRET &&
                                      process.env.GITHUB_OAUTH_CLIENT_ID !== 'demo-client-id';
-        
+
         if (!hasGitHubCredentials) {
-          // Demo mode: allow dashboard access without authentication
           console.log('🎯 Demo mode: Allowing dashboard access without authentication');
           return true;
         }
-        
+
         // Production mode: require authentication
         return !!auth;
       }
@@ -176,8 +204,9 @@ export const config = {
         return session;
       }
 
-      // Check if we're in demo mode (no real GitHub config)
-      const isDemoMode = !process.env.GITHUB_OAUTH_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID === 'demo-client-id';
+      // Check if we're in demo mode (no real GitHub config AND no token mode)
+      const isDemoMode = !isTokenMode &&
+        (!process.env.GITHUB_OAUTH_CLIENT_ID || process.env.GITHUB_OAUTH_CLIENT_ID === 'demo-client-id');
       
       if (isDemoMode) {
         // Demo mode: use simple session without database calls
@@ -225,33 +254,76 @@ export const config = {
       
       return session;
     },
-    async jwt({ token, account, profile }) {
-      if (profile && typeof profile.id !== 'undefined' && profile.id !== null) {
-        token.sub = profile.id.toString();
-        const gh = profile as Record<string, unknown>;
-        token.login = asOptionalString(gh.login);
-        token.html_url = asOptionalString(gh.html_url);
-        token.avatar_url = asOptionalString(gh.avatar_url);
-      }
-      if (account) {
-        token.accessToken = asOptionalString(account.access_token);
+    async jwt({ token, account, profile, user }) {
+      if (account?.provider === 'credentials') {
+        // Token mode: profile is not populated by NextAuth for credentials.
+        // Fetch GitHub profile using the PAT and store fields in the JWT.
+        const pat = process.env.GITHUB_TOKEN!;
+        token.accessToken = pat;
+        token.sub = user.id;
+        try {
+          const client = createGitHubClient(pat);
+          const ghUser = await client.getCurrentUser();
+          token.login = ghUser.login;
+          token.html_url = ghUser.html_url;
+          token.avatar_url = ghUser.avatar_url;
+        } catch (error) {
+          console.error('Token mode: Failed to fetch GitHub profile for JWT', error);
+        }
+      } else {
+        // OAuth mode
+        if (profile && typeof profile.id !== 'undefined' && profile.id !== null) {
+          token.sub = profile.id.toString();
+          const gh = profile as Record<string, unknown>;
+          token.login = asOptionalString(gh.login);
+          token.html_url = asOptionalString(gh.html_url);
+          token.avatar_url = asOptionalString(gh.avatar_url);
+        }
+        if (account) {
+          token.accessToken = asOptionalString(account.access_token);
+        }
       }
       return token;
     },
     async signIn({ user, account, profile }) {
-      // Skip database operations if GitHub credentials not properly configured (demo mode)
-      const hasGitHubCredentials = process.env.GITHUB_OAUTH_CLIENT_ID && 
-                                   process.env.GITHUB_OAUTH_CLIENT_SECRET && 
+      // Token mode: user data comes from authorize(), not profile
+      if (account?.provider === 'credentials') {
+        const pat = process.env.GITHUB_TOKEN!;
+        const githubId = user.id!;
+
+        try {
+          await upsertUser(githubId, {
+            name: user.name ?? null,
+            email: user.email ?? null,
+            image: user.image ?? null,
+          });
+
+          try {
+            const githubService = new GitHubService(pat);
+            await githubService.syncUserOrganizations(githubId);
+          } catch (syncError) {
+            console.error(`Token mode: Organization sync failed for user ${githubId}:`, syncError);
+          }
+
+          return true;
+        } catch (error) {
+          console.error(`Token mode: SignIn failed for user ${githubId}:`, error);
+          return false;
+        }
+      }
+
+      // Demo mode: skip database operations
+      const hasGitHubCredentials = process.env.GITHUB_OAUTH_CLIENT_ID &&
+                                   process.env.GITHUB_OAUTH_CLIENT_SECRET &&
                                    process.env.GITHUB_OAUTH_CLIENT_ID !== 'demo-client-id';
-      
+
       if (!hasGitHubCredentials) {
-        // Demo mode: allow sign-in without database operations  
         console.log('🎯 Demo mode: Allowing sign-in without database operations');
         user.id = 'demo-user-123';
         return true;
       }
 
-      // Production mode: full sign-in process with database operations
+      // OAuth mode: full sign-in process with database operations
       if (!profile || typeof profile.id === 'undefined' || profile.id === null) {
         console.error("SignIn: Missing required profile.id");
         return false;
@@ -263,17 +335,14 @@ export const config = {
       const profileAvatarUrl = asOptionalString(profileData.avatar_url);
 
       try {
-        // Upsert user
         await upsertUser(githubId, {
           name: user.name ?? profileLogin ?? null,
-          // Email may be null/undefined if not provided by GitHub; allow null in DB
           email: user.email ?? null,
           image: user.image ?? profileAvatarUrl ?? null
         });
-        
+
         user.id = githubId;
-        
-        // Sync organizations if we have an access token
+
         if (account?.access_token) {
           try {
             const githubService = new GitHubService(account.access_token);
@@ -282,7 +351,7 @@ export const config = {
             console.error(`Organization sync failed for user ${githubId}:`, syncError);
           }
         }
-        
+
         return true;
       } catch (error) {
         console.error(`SignIn failed for user ${githubId}:`, error);
