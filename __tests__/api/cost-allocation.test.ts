@@ -71,7 +71,7 @@ const mockContext: ApplicationContext = {
 
 // Mock withAuth to pass through to handler with mockContext
 jest.mock('@/lib/core', () => ({
-  withAuth: (handler: Function) => {
+  withAuth: (handler: (...args: unknown[]) => unknown) => {
     return (request: unknown) => handler(mockContext, request);
   },
   ApplicationContext: {},
