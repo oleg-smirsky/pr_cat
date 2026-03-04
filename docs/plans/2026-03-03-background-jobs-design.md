@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS background_jobs (
   name TEXT NOT NULL UNIQUE,
   type TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
+  payload TEXT,
   progress TEXT,
   error_message TEXT,
   started_at TEXT,
@@ -34,7 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_background_jobs_next_run ON background_jobs(next_
 
 - `name` is UNIQUE — one job per logical task (e.g., `full-repository-sync:42`).
 - `type` groups jobs for handler registry lookup.
-- `progress` is JSON text — flexible per job type, stores cursor for resumability.
+- `payload` is immutable JSON set at enqueue time — input data the handler needs (e.g., `{ repositoryId, owner, repo }`).
+- `progress` is mutable JSON updated during execution — runtime state for resumability (e.g., `{ phase: 'reviews', completed: 500, total: 9315 }`).
 - `next_run_at` + `interval_seconds` — recurring jobs re-schedule after completing.
 
 ## Architecture
@@ -51,7 +53,7 @@ CREATE INDEX IF NOT EXISTS idx_background_jobs_next_run ON background_jobs(next_
 
 ```typescript
 interface IJobService {
-  enqueue(type: string, name: string, progress?: Record<string, unknown>): Promise<BackgroundJob>
+  enqueue(type: string, name: string, payload?: Record<string, unknown>): Promise<BackgroundJob>
   cancel(name: string): Promise<void>
   getAll(): Promise<BackgroundJob[]>
   getByName(name: string): Promise<BackgroundJob | null>
@@ -67,6 +69,7 @@ interface IJobService {
 - Claims jobs atomically: `UPDATE ... SET status='running' WHERE id=? AND status='pending'`.
 - Detects stale running jobs (started_at > 10 min ago) and resets to pending.
 - One job at a time (single-threaded, I/O-bound work yields naturally).
+- No global recurring job registration — recurring jobs are created per-repo by `full-repository-sync` on completion.
 
 ### Tick loop
 
@@ -90,25 +93,30 @@ Each job handler manages its own batching to respect the circuit breaker (10 req
 
 - **Trigger:** User enables tracking (webhook route, token mode only).
 - **Name:** `full-repository-sync:<repositoryId>`
+- **Payload:** `{ repositoryId, owner, repo }`
 - **Phase 1:** Fetch all PRs (paginated, 100/page). Upsert into DB. Track `progress.prsPage`.
 - **Phase 2:** Fetch reviews for all PRs missing them. Batch of 5, 12s delay.
+- **On completion:** Enqueues `sync-repository-prs:<repositoryId>` and `sync-pr-reviews:<repositoryId>` as recurring jobs.
 - **Resumable:** On restart, skips PRs already in DB and reviews already fetched.
 
-### sync-repository-prs (recurring, 15 min)
+### sync-repository-prs (recurring, 15 min, per-repo)
 
-- **Token mode only.** Registered on startup.
-- **Name:** `sync-repository-prs`
-- For each tracked repo: fetch recent PRs sorted by `updated_at desc`.
-- Stop when hitting a PR whose `updated_at` matches DB (incremental sync).
-- One repo at a time, delays between API calls.
+- **Created by:** `full-repository-sync` on successful completion.
+- **Name:** `sync-repository-prs:<repositoryId>`
+- **Payload:** `{ repositoryId, owner, repo }`
+- Fetches recent PRs sorted by `updated_at desc`.
+- Stops when hitting a PR whose `updated_at` matches DB (incremental sync).
+- **Cancelled when:** User disables tracking for the repository.
 
-### sync-pr-reviews (recurring, 15 min)
+### sync-pr-reviews (recurring, 15 min, per-repo)
 
-- **Token mode only.** Registered on startup.
-- **Name:** `sync-pr-reviews`
-- Query PRs with zero reviews (LEFT JOIN pr_reviews WHERE r.id IS NULL).
+- **Created by:** `full-repository-sync` on successful completion.
+- **Name:** `sync-pr-reviews:<repositoryId>`
+- **Payload:** `{ repositoryId }`
+- Queries PRs for this repo with zero reviews (LEFT JOIN pr_reviews WHERE r.id IS NULL).
 - Process in batches of 5, 12s delay.
 - Track `progress.completed`, `progress.total`, `progress.lastPrId`.
+- **Cancelled when:** User disables tracking for the repository.
 
 ## API Routes
 
@@ -132,12 +140,22 @@ To:
 
 ```typescript
 await jobService.enqueue('full-repository-sync', `full-repository-sync:${repositoryId}`, {
-  repositoryId, owner, repo
+  payload: { repositoryId, owner, repo }
 })
 return { message: "Repository tracked. Initial sync started in background." }
 ```
 
 GitHub App mode is unchanged.
+
+### Disable tracking (DELETE handler, token mode)
+
+When a user disables tracking, cancel all jobs for that repo:
+
+```typescript
+await jobService.cancel(`full-repository-sync:${repositoryId}`)
+await jobService.cancel(`sync-repository-prs:${repositoryId}`)
+await jobService.cancel(`sync-pr-reviews:${repositoryId}`)
+```
 
 ## File Layout
 
@@ -157,6 +175,23 @@ app/api/jobs/[jobName]/run/route.ts
 app/api/jobs/[jobName]/route.ts
 instrumentation.ts
 ```
+
+## Implementation Order
+
+**Phase 1: Framework + full-repository-sync**
+1. Migration 5 (background_jobs table)
+2. Types, port interface, SQLite adapter (job-repository)
+3. Job runner (singleton, tick loop, enqueue/cancel)
+4. DI registration + ServiceLocator
+5. `full-repository-sync` handler
+6. Webhook route changes (token mode: enqueue on enable, cancel on disable)
+7. API routes (GET /api/jobs, POST run, DELETE cancel)
+8. `instrumentation.ts` to start runner on boot
+
+**Phase 2: Recurring jobs** (depends on Phase 1)
+1. `sync-repository-prs` handler
+2. `sync-pr-reviews` handler
+3. Update `full-repository-sync` to enqueue recurring jobs on completion
 
 ## What Does NOT Change
 
