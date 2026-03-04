@@ -98,4 +98,8 @@ export class SimpleGitHubAPIService implements IGitHubService {
   ): Promise<{ processed: boolean; actions: string[]; errors?: string[] }> {
     return this.demoFallback.processWebhookEvent(event, payload)
   }
+
+  async getRepositoryContributors(owner: string, repo: string): Promise<User[]> {
+    return this.demoFallback.getRepositoryContributors(owner, repo)
+  }
 }

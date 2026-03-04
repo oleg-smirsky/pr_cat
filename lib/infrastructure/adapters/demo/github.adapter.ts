@@ -348,4 +348,11 @@ export class DemoGitHubService implements IGitHubService {
       errors: [`Unsupported event type: ${event}`]
     }
   }
+
+  async getRepositoryContributors(
+    _owner: string,
+    _repo: string
+  ): Promise<User[]> {
+    return DEMO_USERS.slice(0, 3)
+  }
 }

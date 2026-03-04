@@ -168,7 +168,18 @@ export class GitHubClient {
       return data as GitHubUser[];
     });
   }
-  
+
+  async getRepositoryContributors(owner: string, repo: string): Promise<GitHubUser[]> {
+    return this.executeWithTokenRefresh(async () => {
+      const { data } = await this.octokit.repos.listContributors({
+        owner,
+        repo,
+        per_page: 100
+      });
+      return (data || []) as GitHubUser[];
+    });
+  }
+
   async getUserRepositories(): Promise<GitHubRepository[]> {
     return this.executeWithTokenRefresh(async () => {
       const { data } = await this.octokit.repos.listForAuthenticatedUser({

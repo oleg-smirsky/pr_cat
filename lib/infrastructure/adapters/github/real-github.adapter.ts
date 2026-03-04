@@ -1169,4 +1169,29 @@ ${diff}`
     }
     return 'unknown'
   }
+
+  async getRepositoryContributors(
+    owner: string,
+    repo: string
+  ): Promise<User[]> {
+    if (!this.client) {
+      throw new Error('GitHub client not initialized. Access token required.')
+    }
+
+    const contributors = await this.client.getRepositoryContributors(owner, repo)
+
+    return contributors.map(contributor => ({
+      id: contributor.id.toString(),
+      login: contributor.login,
+      name: contributor.name || contributor.login,
+      email: contributor.email || null,
+      avatarUrl: contributor.avatar_url || '',
+      htmlUrl: contributor.html_url || `https://github.com/${contributor.login}`,
+      type: 'User' as const,
+      isNewUser: false,
+      hasGithubApp: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }))
+  }
 }
