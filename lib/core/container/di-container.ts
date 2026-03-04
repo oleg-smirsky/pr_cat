@@ -13,11 +13,12 @@ import {
   IOrganizationRepository,
   IRepository,
   IGitHubService,
-  IGitHubAppService
+  IGitHubAppService,
+  ICommitAnalyticsService
 } from '../ports'
 
 // Service registry types
-export type ServiceName = 
+export type ServiceName =
   | 'PullRequestRepository'
   | 'MetricsService'
   | 'AuthService'
@@ -25,8 +26,9 @@ export type ServiceName =
   | 'Repository'
   | 'GitHubService'
   | 'GitHubAppService'
+  | 'CommitAnalyticsService'
 
-export type ServiceInstance = 
+export type ServiceInstance =
   | IPullRequestRepository
   | IMetricsService
   | IAuthService
@@ -34,6 +36,7 @@ export type ServiceInstance =
   | IRepository
   | IGitHubService
   | IGitHubAppService
+  | ICommitAnalyticsService
 
 export interface ServiceFactory<T = ServiceInstance> {
   (): T | Promise<T>
@@ -131,6 +134,11 @@ export class DIContainer {
       const { GitHubAppService } = await import('../../infrastructure/adapters/github')
       return new GitHubAppService()
     }, true)
+
+    this.register('CommitAnalyticsService', async () => {
+      const { DemoCommitAnalyticsService } = await import('../../infrastructure/adapters/demo/commit-analytics.adapter')
+      return new DemoCommitAnalyticsService()
+    }, true)
   }
 
   /**
@@ -184,6 +192,11 @@ export class DIContainer {
       this.register('GitHubAppService', async () => {
         const { GitHubAppService } = await import('../../infrastructure/adapters/github')
         return new GitHubAppService()
+      }, true)
+
+      this.register('CommitAnalyticsService', async () => {
+        const { TursoCommitAnalyticsService } = await import('../../infrastructure/adapters/turso/commit-analytics.adapter')
+        return new TursoCommitAnalyticsService()
       }, true)
 
       console.log('[DI Container] Production services registered successfully')

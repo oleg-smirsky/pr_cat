@@ -10,7 +10,8 @@ import {
   IAuthService,
   IOrganizationRepository,
   IRepository,
-  IGitHubService
+  IGitHubService,
+  ICommitAnalyticsService
 } from '../ports'
 
 /**
@@ -53,6 +54,10 @@ export class ServiceLocator {
 
   static async getGitHubService(): Promise<IGitHubService> {
     return ServiceLocator.getContainer().get<IGitHubService>('GitHubService')
+  }
+
+  static async getCommitAnalyticsService(): Promise<ICommitAnalyticsService> {
+    return ServiceLocator.getContainer().get<ICommitAnalyticsService>('CommitAnalyticsService')
   }
 
   // Batch service loading for common use cases
