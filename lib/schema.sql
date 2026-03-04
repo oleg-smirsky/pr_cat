@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  login TEXT,
   name TEXT,
   email TEXT UNIQUE,
   image TEXT,

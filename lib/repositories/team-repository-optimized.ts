@@ -31,6 +31,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
     member_role: string | null;
     member_joined_at: string | null;
     user_id: string | null;
+    user_login: string | null;
     user_name: string | null;
     user_email: string | null;
     user_image: string | null;
@@ -48,6 +49,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
       tm.role as member_role,
       tm.joined_at as member_joined_at,
       u.id as user_id,
+      u.login as user_login,
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,
@@ -92,6 +94,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
         updated_at: row.team_updated_at, // Using team's updated_at as fallback
         user: {
           id: row.user_id,
+          login: row.user_login,
           name: row.user_name,
           email: row.user_email,
           image: row.user_image,
@@ -134,6 +137,7 @@ export async function getTeamMembersBatch(teamIds: number[]): Promise<Map<number
     SELECT 
       tm.*,
       u.id as user_id,
+      u.login as user_login,
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,

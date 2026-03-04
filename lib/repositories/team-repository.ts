@@ -11,6 +11,7 @@ type TeamMemberUserRow = {
   tm_created_at: string;
   tm_updated_at: string;
   u_id: string;
+  u_login: string | null;
   u_name: string | null;
   u_email: string | null;
   u_image: string | null;
@@ -245,6 +246,7 @@ export async function getTeamMembers(teamId: number): Promise<(TeamMember & { us
       tm.created_at as tm_created_at,
       tm.updated_at as tm_updated_at,
       u.id as u_id,
+      u.login as u_login,
       u.name as u_name,
       u.email as u_email,
       u.image as u_image,
@@ -266,6 +268,7 @@ export async function getTeamMembers(teamId: number): Promise<(TeamMember & { us
     updated_at: row.tm_updated_at,
     user: {
       id: row.u_id,
+      login: row.u_login,
       name: row.u_name,
       email: row.u_email,
       image: row.u_image,
@@ -338,15 +341,16 @@ export async function getOrganizationMembers(organizationId: number): Promise<Us
 
 export async function searchUsers(organizationId: number, searchTerm: string): Promise<User[]> {
   return query<User>(`
-    SELECT DISTINCT u.* 
+    SELECT DISTINCT u.*
     FROM users u
     JOIN user_organizations uo ON u.id = uo.user_id
-    WHERE uo.organization_id = ? 
+    WHERE uo.organization_id = ?
     AND (
-      LOWER(u.name) LIKE LOWER(?) 
+      LOWER(u.name) LIKE LOWER(?)
       OR LOWER(u.email) LIKE LOWER(?)
+      OR LOWER(u.login) LIKE LOWER(?)
     )
     ORDER BY u.name
     LIMIT 20
-  `, [organizationId, `%${searchTerm}%`, `%${searchTerm}%`]);
+  `, [organizationId, `%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`]);
 }

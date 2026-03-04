@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
+  login TEXT,
   name TEXT,
   email TEXT UNIQUE,
   image TEXT,
@@ -271,6 +272,14 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_commits_project_id ON commits(project_id);
       CREATE INDEX IF NOT EXISTS idx_commits_jira_ticket_id ON commits(jira_ticket_id);
       CREATE INDEX IF NOT EXISTS idx_commit_branches_commit_id ON commit_branches(commit_id);
+    `
+  },
+  {
+    version: 6,
+    name: 'add_user_login_column',
+    sql: `
+      ALTER TABLE users ADD COLUMN login TEXT;
+      CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
     `
   }
 ];

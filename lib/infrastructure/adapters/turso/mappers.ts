@@ -98,11 +98,11 @@ export function mapDbOrganizationToDomain(dbOrg: DbTypes.Organization): Organiza
 export function mapDbUserToDomain(dbUser: DbTypes.User): User {
   return {
     id: dbUser.id,
-    login: dbUser.name || 'unknown',
+    login: dbUser.login || dbUser.name || 'unknown',
     name: dbUser.name,
     email: dbUser.email,
     avatarUrl: dbUser.image || '',
-    htmlUrl: `https://github.com/${dbUser.name || 'unknown'}`,
+    htmlUrl: `https://github.com/${dbUser.login || dbUser.name || 'unknown'}`,
     type: 'User',
     isNewUser: false, // Would need to determine based on created_at
     hasGithubApp: true, // Assume true if they're in the database

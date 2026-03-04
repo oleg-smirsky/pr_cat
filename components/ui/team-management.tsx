@@ -295,6 +295,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
       updated_at: new Date().toISOString(),
       user: orgMembers.find(u => u.id === dataToSend.user_id) || {
         id: dataToSend.user_id,
+        login: null,
         name: 'Loading...',
         email: 'Loading...',
         image: null,
@@ -791,7 +792,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                 <Label htmlFor="member-search" className="text-sm font-medium">Search & Filter</Label>
                 <Input
                   id="member-search"
-                  placeholder="Search by name, email, or role..."
+                  placeholder="Search by name, handle, or email..."
                   value={memberSearch}
                   onChange={(e) => setMemberSearch(e.target.value)}
                   className="mt-2"
@@ -837,9 +838,11 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                   <div className="divide-y divide-border/50">
                     {getAvailableMembers(selectedTeam)
                       .filter(user => {
-                        const matchesSearch = !memberSearch || 
-                          user.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-                          user.email?.toLowerCase().includes(memberSearch.toLowerCase());
+                        const search = memberSearch.toLowerCase();
+                        const matchesSearch = !memberSearch ||
+                          user.name?.toLowerCase().includes(search) ||
+                          user.login?.toLowerCase().includes(search) ||
+                          user.email?.toLowerCase().includes(search);
                         return matchesSearch;
                       })
                       .map((user) => (
@@ -852,12 +855,14 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate text-sm">{user.name || 'No name'}</p>
-                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                              <p className="font-medium truncate text-sm">{user.name || user.login || 'No name'}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {user.login ? `@${user.login}` : user.email}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Select 
-                                value={addMemberForm.role} 
+                              <Select
+                                value={addMemberForm.role}
                                 onValueChange={(value: 'member' | 'lead' | 'admin') => setAddMemberForm({ ...addMemberForm, role: value })}
                               >
                                 <SelectTrigger className="w-20 h-7 text-xs">
@@ -915,9 +920,10 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                 ) : (
                   <div className="divide-y divide-border/50">
                     {(selectedTeam.members ?? [])
-                      .filter(member => 
-                        !memberSearch || 
+                      .filter(member =>
+                        !memberSearch ||
                         member.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                        member.user?.login?.toLowerCase().includes(memberSearch.toLowerCase()) ||
                         member.user?.email?.toLowerCase().includes(memberSearch.toLowerCase()) ||
                         member.role.toLowerCase().includes(memberSearch.toLowerCase())
                       )
@@ -931,8 +937,10 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate text-sm">{member.user?.name || 'No name'}</p>
-                              <p className="text-xs text-muted-foreground truncate">{member.user?.email}</p>
+                              <p className="font-medium truncate text-sm">{member.user?.name || member.user?.login || 'No name'}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {member.user?.login ? `@${member.user.login}` : member.user?.email}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary" className={`${getRoleColor(member.role)} text-xs`}>

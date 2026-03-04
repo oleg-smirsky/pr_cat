@@ -28,22 +28,24 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   }
 }
 
-export async function createUser(user: { 
-  id: string; 
-  name: string | null; 
-  email: string | null; 
-  image: string | null; 
+export async function createUser(user: {
+  id: string;
+  login?: string | null;
+  name: string | null;
+  email: string | null;
+  image: string | null;
 }): Promise<User> {
   console.log('Creating new user:', user.id, user.email);
-  
+
   try {
     const result = await execute(
-      `INSERT INTO users (id, name, email, image) VALUES (?, ?, ?, ?)
+      `INSERT INTO users (id, login, name, email, image) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
+         login = COALESCE(excluded.login, login),
          name = COALESCE(excluded.name, name),
          email = COALESCE(excluded.email, email),
          image = COALESCE(excluded.image, image)`,
-      [user.id, user.name, user.email, user.image]
+      [user.id, user.login || null, user.name, user.email, user.image]
     );
     
     console.log('User creation result:', result);
@@ -143,17 +145,17 @@ export async function findOrCreateUserByGitHubId(userData: {
 }): Promise<User> {
   const existingUser = await findUserById(userData.id);
   if (existingUser) {
-    // Optionally update user details if they've changed
-    // For now, just return the existing user
+    // Backfill login for existing users who don't have it yet
+    if (!existingUser.login && userData.login) {
+      await execute('UPDATE users SET login = ? WHERE id = ?', [userData.login, userData.id]);
+      existingUser.login = userData.login;
+    }
     return existingUser;
   }
 
-  // User not found, create a new one
-  // The users table expects 'name', 'email', 'image'
-  // We'll use github login for name if display name is not available
-  // and github avatar_url for image
   return createUser({
     id: userData.id,
+    login: userData.login,
     name: userData.name || userData.login,
     email: userData.email || null,
     image: userData.avatar_url || null,
@@ -172,6 +174,7 @@ export async function findUserWithOrganizations(
 } | null> {
   const results = await query<{
     user_id: string;
+    user_login: string | null;
     user_name: string | null;
     user_email: string;
     user_image: string | null;
@@ -188,6 +191,7 @@ export async function findUserWithOrganizations(
   }>(`
     SELECT 
       u.id as user_id,
+      u.login as user_login,
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,
@@ -215,6 +219,7 @@ export async function findUserWithOrganizations(
   // Extract user data (same for all rows)
   const userData = {
     id: results[0].user_id,
+    login: results[0].user_login,
     name: results[0].user_name,
     email: results[0].user_email,
     image: results[0].user_image,

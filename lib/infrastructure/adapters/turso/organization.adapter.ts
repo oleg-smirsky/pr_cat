@@ -78,14 +78,16 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
       // Get organization members with pagination
       const members = await query<{
         id: string
+        login: string | null
         name: string | null
         email: string | null
         image: string | null
         role: string
         created_at: string
       }>(`
-        SELECT 
+        SELECT
           u.id,
+          u.login,
           u.name,
           u.email,
           u.image,
@@ -109,7 +111,7 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
       
       const data: OrganizationMember[] = members.map(member => ({
         id: member.id,
-        login: member.name || 'unknown',
+        login: member.login || member.name || 'unknown',
         name: member.name,
         email: member.email,
         avatarUrl: member.image || '',
@@ -197,7 +199,7 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
       }>(`
         SELECT
           u.id,
-          u.name AS login,
+          u.login,
           c.author_name,
           u.email,
           u.image,
@@ -212,7 +214,7 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
 
       return members.map(m => ({
         id: m.id,
-        login: m.login || 'unknown',
+        login: m.login || m.author_name || 'unknown',
         name: m.author_name !== m.login ? m.author_name : null,
         email: m.email,
         avatarUrl: m.image || '',
