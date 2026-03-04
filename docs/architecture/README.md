@@ -33,6 +33,10 @@ For new API behavior:
 3. Consume services from `ServiceLocator` in route handlers.
 4. Keep route handlers thin and focused on transport concerns.
 
+## Deployment Modes
+
+The app supports three modes: **OAuth** (GitHub App + OAuth, full features), **Token** (`GITHUB_TOKEN` PAT, no webhooks — poll-based sync), and **Demo** (no credentials, mock data).
+
 ## Source of truth
 
 - Machine-readable manifest: [`docs/architecture/repository-manifest.json`](./repository-manifest.json)
