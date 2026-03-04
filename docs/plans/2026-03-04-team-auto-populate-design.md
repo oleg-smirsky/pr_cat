@@ -1,111 +1,82 @@
 # Team Auto-Population from Repository Contributors
 
-## Problem
+**Status:** Implemented
 
-Manually adding team members one by one is tedious. Users want to seed a team from the committers of a specific repository.
+## Overview
 
-## Solution
+Bulk-add team members by selecting a repository and importing its contributors. Eliminates the need to manually add members one by one.
 
-Add a "Populate from repo" button on each team card that lets users pick a repository, preview matched org members who are contributors, and bulk-add them to the team.
+## User Flow
+
+1. Settings → Teams tab → click **Populate** on a team card
+2. Select a repository from the dropdown
+3. Preview matched contributors (checkboxes, all selected by default)
+4. Deselect anyone unwanted, click **Add N members**
+5. Toast confirms count, dialog closes, team card updates
 
 ## Architecture
 
-Follows the existing hexagonal pattern: port → adapter → DI container → ServiceLocator → route handler.
+Follows the hexagonal pattern: port → adapter → DI container → ServiceLocator → route handler.
 
-### Port Changes
+### Ports
 
-**IOrganizationRepository** — add method:
+**IOrganizationRepository** (`lib/core/ports/organization.port.ts`):
 
 ```typescript
 getRepoContributors(organizationId: string, repositoryId: string): Promise<OrganizationMember[]>
 ```
 
-Returns org members who have committed to the given repository.
-
-**IGitHubService** — add method:
+**IGitHubService** (`lib/core/ports/github.port.ts`):
 
 ```typescript
-getRepositoryContributors(owner: string, repo: string): Promise<GitHubUser[]>
+getRepositoryContributors(owner: string, repo: string): Promise<User[]>
 ```
 
-Wraps `octokit.repos.listContributors()`. Used as fallback when no ingested commits exist.
+### Adapters
 
-### Adapter Implementations
+**TursoOrganizationRepository.getRepoContributors()** — two-tier resolution:
 
-**TursoOrganizationRepository.getRepoContributors():**
-
-1. Query the `commits` table for distinct authors on the repo, joined to `users` and `user_organizations`:
+1. Query the `commits` table for distinct authors who are org members:
    ```sql
-   SELECT DISTINCT u.*
+   SELECT DISTINCT u.id, u.name, u.email, u.image, uo.role, uo.created_at
    FROM commits c
    JOIN users u ON u.id = c.author_id
    JOIN user_organizations uo ON uo.user_id = u.id AND uo.organization_id = ?
    WHERE c.repository_id = ?
    ```
-2. If query returns 0 results (repo not ingested), fall back:
-   - Look up repo owner/name from `repositories` table
-   - Call `IGitHubService.getRepositoryContributors(owner, repo)`
-   - Match returned GitHub users against org members by GitHub user ID
-3. Return matched `OrganizationMember[]`
+2. If no results (repo not ingested): fall back to `IGitHubService.getRepositoryContributors()` via `octokit.repos.listContributors()`, then match returned GitHub users against org members by user ID.
 
-**DemoOrganizationRepository.getRepoContributors():**
+**DemoOrganizationRepository** — returns first 3 demo users.
 
-Return a subset of `DEMO_USERS` (e.g., first 3) to simulate contributors.
+**GitHubClient** (`lib/github.ts`) — `getRepositoryContributors()` wraps `octokit.repos.listContributors()`.
 
-**GitHub adapter (Turso/Real):**
-
-```typescript
-async getRepositoryContributors(owner: string, repo: string): Promise<GitHubUser[]> {
-  return octokit.repos.listContributors({ owner, repo, per_page: 100 })
-}
-```
-
-**Demo GitHub adapter:**
-
-Return demo users.
-
-### API Route
+### API
 
 `GET /api/organizations/[orgId]/repositories/[repoId]/contributors`
 
-- Uses `withAuth` middleware + `ApplicationContext`
-- Calls `ServiceLocator.getOrganizationRepository().getRepoContributors()`
-- Returns `OrganizationMember[]`
+- Auth: `withAuth` middleware
+- Returns: `OrganizationMember[]`
+- Handler: `app/api/organizations/[orgId]/repositories/[repoId]/contributors/route.ts`
 
 ### Frontend
 
-**Team card:** Add a "Populate" button next to the existing "Manage" button on each team card.
+- **Populate button** on each team card in `components/ui/team-management.tsx`
+- **Dialog** with repo `<Select>`, contributor checklist with select/deselect all, bulk-add via existing `POST .../teams/{teamId}/members`
 
-**Populate dialog:**
-1. Repo dropdown (fetched from existing org repositories endpoint)
-2. User picks repo → calls `GET /api/organizations/{orgId}/repositories/{repoId}/contributors`
-3. Checklist of matched members (avatar, name, email, checkbox — all checked by default), excluding members already on the team
-4. "Add selected" button → bulk-POSTs via existing `POST /api/organizations/{orgId}/teams/{teamId}/members`
-5. Toast with count of added members, closes dialog
+## Files Changed
 
-**Edge cases:**
-- No contributors found → "No contributors found for this repo"
-- All contributors already on team → "All contributors are already team members"
-- Loading states for contributor fetch and bulk-add
-
-## Data Flow
-
-```
-User clicks "Populate" on team card
-  → Opens dialog with repo dropdown
-  → Selects repo
-  → GET /api/organizations/{orgId}/repositories/{repoId}/contributors
-    → withAuth → ApplicationContext
-    → ServiceLocator.getOrganizationRepository()
-    → TursoOrganizationRepository.getRepoContributors()
-      → DB query (commits table)
-      → If empty: IGitHubService.getRepositoryContributors() → match to org members
-    → Returns OrganizationMember[]
-  → Preview checklist (deselect unwanted)
-  → "Add selected"
-  → N × POST /api/organizations/{orgId}/teams/{teamId}/members
-  → Toast + close
-```
+| File | Change |
+|------|--------|
+| `lib/core/ports/github.port.ts` | Added `getRepositoryContributors` |
+| `lib/core/ports/organization.port.ts` | Added `getRepoContributors` |
+| `lib/github.ts` | Added `GitHubClient.getRepositoryContributors` |
+| `lib/infrastructure/adapters/demo/github.adapter.ts` | Demo implementation |
+| `lib/infrastructure/adapters/github/real-github.adapter.ts` | Real implementation |
+| `lib/infrastructure/adapters/github/simple-github.adapter.ts` | Delegates to demo |
+| `lib/infrastructure/adapters/demo/organization.adapter.ts` | Demo implementation |
+| `lib/infrastructure/adapters/turso/organization.adapter.ts` | DB + GitHub fallback |
+| `app/api/organizations/[orgId]/repositories/[repoId]/contributors/route.ts` | API route |
+| `components/ui/team-management.tsx` | Populate button + dialog |
 
 ## No Schema Changes
 
