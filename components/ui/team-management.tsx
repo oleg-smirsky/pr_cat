@@ -855,9 +855,13 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate text-sm">{user.name || user.login || 'No name'}</p>
+                              <p className="font-medium truncate text-sm">
+                                {user.name && user.name !== user.login ? user.name : user.login || 'No name'}
+                              </p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {user.login ? `@${user.login}` : user.email}
+                                {user.name && user.name !== user.login && user.login
+                                  ? `@${user.login}`
+                                  : user.email}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -937,9 +941,13 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate text-sm">{member.user?.name || member.user?.login || 'No name'}</p>
+                              <p className="font-medium truncate text-sm">
+                                {member.user?.name && member.user.name !== member.user.login ? member.user.name : member.user?.login || 'No name'}
+                              </p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {member.user?.login ? `@${member.user.login}` : member.user?.email}
+                                {member.user?.name && member.user.name !== member.user.login && member.user.login
+                                  ? `@${member.user.login}`
+                                  : member.user?.email}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">

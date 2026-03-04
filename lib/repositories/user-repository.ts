@@ -145,11 +145,28 @@ export async function findOrCreateUserByGitHubId(userData: {
 }): Promise<User> {
   const existingUser = await findUserById(userData.id);
   if (existingUser) {
+    const updates: string[] = [];
+    const values: (string | null)[] = [];
+
     // Backfill login for existing users who don't have it yet
     if (!existingUser.login && userData.login) {
-      await execute('UPDATE users SET login = ? WHERE id = ?', [userData.login, userData.id]);
+      updates.push('login = ?');
+      values.push(userData.login);
       existingUser.login = userData.login;
     }
+
+    // Fix name if it was set to the login as a fallback and we now have a real name
+    if (userData.name && userData.name !== userData.login && existingUser.name === userData.login) {
+      updates.push('name = ?');
+      values.push(userData.name);
+      existingUser.name = userData.name;
+    }
+
+    if (updates.length > 0) {
+      values.push(userData.id);
+      await execute(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+    }
+
     return existingUser;
   }
 
