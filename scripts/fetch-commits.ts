@@ -5,8 +5,12 @@
  * Usage:
  *   pnpm fetch-commits --repos owner/repo1,owner/repo2 --since 2025-01-01
  *
- * Requires GITHUB_TOKEN environment variable.
+ * Requires GITHUB_TOKEN environment variable (loaded from .env.local).
  */
+
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 
 import * as path from 'node:path';
 import { Octokit } from '@octokit/rest';
