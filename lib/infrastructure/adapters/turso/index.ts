@@ -7,6 +7,7 @@
 export { TursoAuthService } from './auth.adapter'
 export { TursoOrganizationRepository } from './organization.adapter'
 export { TursoRepository } from './repository.adapter'
+export { TursoCommitAnalyticsService } from './commit-analytics.adapter'
 
 // Note: Optimized adapters are imported directly where needed
 // - OptimizedTursoPullRequestRepository from './optimized-pull-request.adapter'
