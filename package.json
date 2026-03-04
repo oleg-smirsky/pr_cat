@@ -16,7 +16,8 @@
     "test:integration": "jest __tests__/api",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "generate-mock-data": "node scripts/generate-mock-data.js",
-    "fetch-commits": "npx tsx scripts/fetch-commits.ts"
+    "fetch-commits": "npx tsx scripts/fetch-commits.ts",
+    "ingest-commits": "npx tsx scripts/ingest-commits.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",
