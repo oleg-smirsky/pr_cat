@@ -99,6 +99,21 @@ export class DemoOrganizationRepository implements IOrganizationRepository {
     return repositories
   }
 
+  async getRepoContributors(
+    _organizationId: string,
+    _repositoryId: string
+  ): Promise<OrganizationMember[]> {
+    return DEMO_USERS.slice(0, 3).map((user, index) => ({
+      id: user.id,
+      login: user.login,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      role: index === 0 ? 'admin' as const : 'member' as const,
+      joinedAt: user.createdAt
+    }))
+  }
+
   async getSettings(organizationId: string): Promise<OrganizationSettings> {
     return {
       organizationId,

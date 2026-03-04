@@ -178,6 +178,95 @@ export class TursoOrganizationRepository implements IOrganizationRepository {
     }
   }
 
+  async getRepoContributors(
+    organizationId: string,
+    repositoryId: string
+  ): Promise<OrganizationMember[]> {
+    const orgId = parseInt(organizationId)
+    const repoId = parseInt(repositoryId)
+
+    try {
+      // 1. Try DB: distinct commit authors who are org members
+      const members = await query<{
+        id: string
+        name: string | null
+        email: string | null
+        image: string | null
+        role: string
+        created_at: string
+      }>(`
+        SELECT DISTINCT
+          u.id,
+          u.name,
+          u.email,
+          u.image,
+          uo.role,
+          uo.created_at
+        FROM commits c
+        JOIN users u ON u.id = c.author_id
+        JOIN user_organizations uo ON uo.user_id = u.id AND uo.organization_id = ?
+        WHERE c.repository_id = ?
+      `, [orgId, repoId])
+
+      if (members.length > 0) {
+        return members.map(m => ({
+          id: m.id,
+          login: m.name || 'unknown',
+          name: m.name,
+          email: m.email,
+          avatarUrl: m.image || '',
+          role: m.role === 'owner' ? 'admin' as const : m.role as 'admin' | 'member',
+          joinedAt: new Date(m.created_at)
+        }))
+      }
+
+      // 2. Fallback: GitHub API contributors matched to org members
+      const repoRows = await query<{ name: string; full_name: string }>(`
+        SELECT name, full_name FROM repositories WHERE id = ?
+      `, [repoId])
+
+      if (repoRows.length === 0) return []
+
+      const fullName = repoRows[0].full_name
+      const [owner, repo] = fullName.split('/')
+      if (!owner || !repo) return []
+
+      const { ServiceLocator } = await import('../../../core/container/service-locator')
+      const githubService = await ServiceLocator.getGitHubService()
+      const contributors = await githubService.getRepositoryContributors(owner, repo)
+
+      // Match contributors to org members by GitHub user ID
+      const orgMembers = await query<{
+        id: string
+        name: string | null
+        email: string | null
+        image: string | null
+        role: string
+        created_at: string
+      }>(`
+        SELECT u.id, u.name, u.email, u.image, uo.role, uo.created_at
+        FROM users u
+        JOIN user_organizations uo ON uo.user_id = u.id AND uo.organization_id = ?
+      `, [orgId])
+
+      const contributorIds = new Set(contributors.map(c => c.id))
+      const matched = orgMembers.filter(m => contributorIds.has(m.id))
+
+      return matched.map(m => ({
+        id: m.id,
+        login: m.name || 'unknown',
+        name: m.name,
+        email: m.email,
+        avatarUrl: m.image || '',
+        role: m.role === 'owner' ? 'admin' as const : m.role as 'admin' | 'member',
+        joinedAt: new Date(m.created_at)
+      }))
+    } catch (error) {
+      console.error('Error getting repo contributors:', error)
+      return []
+    }
+  }
+
   async getSettings(organizationId: string): Promise<OrganizationSettings> {
     try {
       const orgId = parseInt(organizationId)

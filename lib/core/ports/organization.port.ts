@@ -100,6 +100,15 @@ export interface IOrganizationRepository {
   deleteCategory(organizationId: string, categoryId: string): Promise<void>
 
   /**
+   * Get organization members who have contributed to a specific repository.
+   * Uses ingested commit data when available, falls back to GitHub API.
+   */
+  getRepoContributors(
+    organizationId: string,
+    repositoryId: string
+  ): Promise<OrganizationMember[]>
+
+  /**
    * Get organization metrics
    */
   getMetrics(organizationId: string): Promise<OrganizationMetrics>
