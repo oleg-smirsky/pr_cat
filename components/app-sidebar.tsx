@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import {
   IconChartBar,
+  IconCoins,
   IconDashboard,
   IconFolder,
   IconLifebuoy,
@@ -44,6 +45,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Analytics",
       url: "/dashboard/analytics",
       icon: IconChartBar,
+    },
+    {
+      title: "Cost Allocation",
+      url: "/dashboard/cost-allocation",
+      icon: IconCoins,
     },
     {
       title: "Repositories",
