@@ -15,7 +15,9 @@
     "test:unit": "jest __tests__/lib",
     "test:integration": "jest __tests__/api",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
-    "generate-mock-data": "node scripts/generate-mock-data.js"
+    "generate-mock-data": "node scripts/generate-mock-data.js",
+    "fetch-commits": "npx tsx scripts/fetch-commits.ts",
+    "ingest-commits": "npx tsx scripts/ingest-commits.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",
@@ -53,6 +55,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
     "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.561.0",

@@ -49,7 +49,7 @@ export async function updateOrganization(
     return findOrganizationById(id);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE organizations SET ${updates.join(', ')} WHERE id = ?`,

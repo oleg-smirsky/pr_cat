@@ -21,6 +21,19 @@ export async function GET(request: NextRequest) {
     // Load organizations from database for this user
     const { organizations } = await getUserWithOrganizations(request as unknown as Request);
 
+    // Token mode: PAT validated at sign-in, all orgs are connected
+    const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
+      (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_PRIVATE_KEY);
+
+    if (isTokenMode) {
+      const enriched = organizations.map((org: OrganizationWithRole) => ({
+        ...org,
+        isGithubConnected: true,
+        installationId: null,
+      }));
+      return NextResponse.json({ installations: enriched });
+    }
+
     // List GitHub App installations (app-wide), then map to user's orgs by login/name
     const appJwt = await generateAppJwt();
     const appOctokit = new Octokit({ auth: appJwt });
@@ -32,7 +45,7 @@ export async function GET(request: NextRequest) {
       );
       return {
         ...org,
-        hasAppInstalled: !!installation,
+        isGithubConnected: !!installation,
         installationId: installation?.id ?? null,
       };
     });

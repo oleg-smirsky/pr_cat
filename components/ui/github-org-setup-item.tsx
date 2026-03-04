@@ -12,7 +12,7 @@ export type OrganizationWithInstallation = {
   github_id: number; // GitHub's unique ID for the org
   name: string;
   avatar_url: string | null;
-  hasAppInstalled: boolean;
+  isGithubConnected: boolean;
   installationId: number | null; // GitHub App installation ID for this org
 };
 
@@ -29,7 +29,7 @@ export function GitHubOrgSetupItem({
   onSelectOrganization,
   onAppInstallInitiated
 }: GitHubOrgSetupItemProps) {
-  const canBeSelected = org.hasAppInstalled;
+  const canBeSelected = org.isGithubConnected;
 
   const handleItemClick = () => {
     if (canBeSelected) {
@@ -70,25 +70,25 @@ export function GitHubOrgSetupItem({
           </Avatar>
           <div className="grow min-w-0">
             <p className="font-medium text-lg truncate">{org.name}</p>
-            {org.hasAppInstalled ? (
+            {org.isGithubConnected ? (
               <Badge variant="outline" className="text-green-600 border-green-600">
                 <CheckCircle2 className="mr-1 h-3 w-3" />
-                App Installed
+                Connected
               </Badge>
             ) : (
               <Badge variant="outline" className="text-amber-600 border-amber-600">
                 <XCircle className="mr-1 h-3 w-3" />
-                App Not Installed
+                Not Connected
               </Badge>
             )}
           </div>
         </div>
         
         <div className="shrink-0 ml-2">
-            {!org.hasAppInstalled ? (
-            <InstallGitHubAppButton 
-                size="sm" 
-                organizationName={org.name} 
+            {!org.isGithubConnected && org.installationId === null ? (
+            <InstallGitHubAppButton
+                size="sm"
+                organizationName={org.name}
                 organizationGitHubId={org.github_id}
                 onClick={onAppInstallInitiated}
             />
@@ -99,9 +99,9 @@ export function GitHubOrgSetupItem({
             )}
         </div>
       </div>
-      {!org.hasAppInstalled && (
+      {!org.isGithubConnected && (
         <p className="text-sm text-muted-foreground pl-13">
-          Install the GitHub App to enable repository configuration for this organization.
+          Connect GitHub to enable repository configuration for this organization.
         </p>
       )}
     </div>

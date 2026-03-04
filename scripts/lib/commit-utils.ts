@@ -1,0 +1,62 @@
+/** Extract Jira ticket ID from the first line of a commit message */
+export function extractJiraTicket(message: string): string | null {
+  const firstLine = message.split('\n')[0];
+  const match = firstLine.match(/^([A-Z]+-\d+)/);
+  return match ? match[1] : null;
+}
+
+/** Shape of the cached GitHub commit JSON we read from disk */
+export interface CachedCommitData {
+  sha: string;
+  commit: {
+    message: string;
+    author: {
+      name: string;
+      email: string;
+      date: string;
+    };
+  };
+  author: {
+    login: string;
+    id: number;
+  } | null;
+  stats?: {
+    additions: number;
+    deletions: number;
+  };
+}
+
+/** Fields extracted from a cached commit, ready for DB insertion */
+export interface ParsedCommit {
+  sha: string;
+  authorEmail: string;
+  authorName: string;
+  message: string;
+  committedAt: string;
+  additions: number;
+  deletions: number;
+  jiraTicketId: string | null;
+  githubAuthorLogin: string | null;
+  githubAuthorId: string | null;
+}
+
+/** Parse cached commit JSON into the fields we need for DB insertion */
+export function parseCommitForIngestion(data: CachedCommitData): ParsedCommit {
+  return {
+    sha: data.sha,
+    authorEmail: data.commit.author.email,
+    authorName: data.commit.author.name,
+    committedAt: data.commit.author.date,
+    message: data.commit.message,
+    additions: data.stats?.additions ?? 0,
+    deletions: data.stats?.deletions ?? 0,
+    jiraTicketId: extractJiraTicket(data.commit.message),
+    githubAuthorLogin: data.author?.login ?? null,
+    githubAuthorId: data.author?.id ? String(data.author.id) : null,
+  };
+}
+
+/** Reverse the filename sanitization: replace __ back to / and strip .json */
+export function unsanitizeBranchName(filename: string): string {
+  return filename.replace(/\.json$/, '').replace(/__/g, '/');
+}

@@ -73,7 +73,7 @@ export async function updateRepository(
     return findRepositoryById(id);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE repositories SET ${updates.join(', ')} WHERE id = ?`,
@@ -85,7 +85,7 @@ export async function updateRepository(
 
 export async function setRepositoryTracking(id: number, isTracked: boolean): Promise<Repository | null> {
   await execute(
-    'UPDATE repositories SET is_tracked = ?, updated_at = datetime("now") WHERE id = ?',
+    "UPDATE repositories SET is_tracked = ?, updated_at = datetime('now') WHERE id = ?",
     [isTracked ? 1 : 0, id]
   );
   

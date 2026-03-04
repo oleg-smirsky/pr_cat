@@ -38,7 +38,11 @@ export async function createUser(user: {
   
   try {
     const result = await execute(
-      'INSERT INTO users (id, name, email, image) VALUES (?, ?, ?, ?)',
+      `INSERT INTO users (id, name, email, image) VALUES (?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = COALESCE(excluded.name, name),
+         email = COALESCE(excluded.email, email),
+         image = COALESCE(excluded.image, image)`,
       [user.id, user.name, user.email, user.image]
     );
     
@@ -72,7 +76,7 @@ export async function updateUser(id: string, data: Partial<Omit<User, 'id' | 'cr
     return findUserById(id);
   }
   
-  updates.push('updated_at = datetime("now")');
+  updates.push("updated_at = datetime('now')");
   
   await execute(
     `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,

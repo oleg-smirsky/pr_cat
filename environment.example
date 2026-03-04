@@ -14,13 +14,20 @@ NEXTAUTH_URL=http://localhost:3000
 APP_URL=http://localhost:3000
 
 # ===========================================
-# GITHUB OAUTH APP (Required)
+# AUTHENTICATION MODE: Choose ONE of the following
 # ===========================================
+
+# --- Option A: Token Mode (simplest, no OAuth app needed) ---
+# Use a GitHub PAT or `gh auth token` output.
+# Required PAT scopes: read:user, user:email, repo, read:org
+# GITHUB_TOKEN=ghp_your_personal_access_token
+# NEXT_PUBLIC_AUTH_MODE=token
+
+# --- Option B: GitHub OAuth App ---
 # Create at: https://github.com/settings/developers
 # Callback URL: ${NEXTAUTH_URL}/api/auth/callback/github
-
-GITHUB_OAUTH_CLIENT_ID=your_github_oauth_client_id
-GITHUB_OAUTH_CLIENT_SECRET=your_github_oauth_client_secret
+# GITHUB_OAUTH_CLIENT_ID=your_github_oauth_client_id
+# GITHUB_OAUTH_CLIENT_SECRET=your_github_oauth_client_secret
 
 # ===========================================
 # GITHUB APP (Required for repository access)

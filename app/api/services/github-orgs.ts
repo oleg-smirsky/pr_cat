@@ -52,7 +52,20 @@ export async function getOrganizationInstallations(): Promise<OrganizationWithIn
     }
     
     console.log(`getOrganizationInstallations: Found ${result.organizations.length} organizations in database`);
-    
+
+    // Token mode: PAT validated at sign-in, all orgs are connected
+    const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
+      (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_PRIVATE_KEY);
+
+    if (isTokenMode) {
+      console.log('getOrganizationInstallations: Token mode — marking all orgs as connected');
+      return result.organizations.map((org: OrganizationWithRole) => ({
+        ...org,
+        isGithubConnected: true,
+        installationId: null,
+      }));
+    }
+
     try {
       // List GitHub App installations to enrich with installation status
       console.log('getOrganizationInstallations: Generating GitHub App JWT');
@@ -68,13 +81,13 @@ export async function getOrganizationInstallations(): Promise<OrganizationWithIn
         const installation = installationsData.find(
           (install) => install.account && install.account.login.toLowerCase() === org.name.toLowerCase()
         );
-        const hasAppInstalled = !!installation;
+        const isGithubConnected = !!installation;
         
-        console.log(`getOrganizationInstallations: Org ${org.name} hasAppInstalled=${hasAppInstalled}`);
+        console.log(`getOrganizationInstallations: Org ${org.name} isGithubConnected=${isGithubConnected}`);
         
         return {
           ...org,
-          hasAppInstalled,
+          isGithubConnected,
           installationId: installation?.id ?? null,
         };
       });
@@ -86,7 +99,7 @@ export async function getOrganizationInstallations(): Promise<OrganizationWithIn
       // Return organizations without installation status if GitHub App API fails
       return result.organizations.map((org: OrganizationWithRole) => ({
         ...org,
-        hasAppInstalled: false,
+        isGithubConnected: false,
         installationId: null,
       }));
     }

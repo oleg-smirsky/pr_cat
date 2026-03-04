@@ -20,6 +20,27 @@ interface RepositoryWebhook {
   events: string[];
 }
 
+// Global circuit breaker: trips if any single sliding window exceeds the threshold.
+// Protects against bugs (infinite loops, runaway re-renders) hammering GitHub.
+const CIRCUIT_BREAKER_WINDOW_MS = 10_000; // 10 seconds
+const CIRCUIT_BREAKER_MAX_REQUESTS = 10;   // max requests per window
+const requestTimestamps: number[] = [];
+
+function checkCircuitBreaker(): void {
+  const now = Date.now();
+  // Evict timestamps outside the window
+  while (requestTimestamps.length > 0 && requestTimestamps[0] <= now - CIRCUIT_BREAKER_WINDOW_MS) {
+    requestTimestamps.shift();
+  }
+  if (requestTimestamps.length >= CIRCUIT_BREAKER_MAX_REQUESTS) {
+    throw new Error(
+      `GitHub API circuit breaker tripped: ${CIRCUIT_BREAKER_MAX_REQUESTS} requests in ${CIRCUIT_BREAKER_WINDOW_MS / 1000}s. ` +
+      `This likely indicates a bug (infinite loop). Requests blocked until the window resets.`
+    );
+  }
+  requestTimestamps.push(now);
+}
+
 function getErrorStatus(error: unknown): number | undefined {
   return typeof error === 'object' &&
     error !== null &&
@@ -71,7 +92,7 @@ export class GitHubClient {
    */
   private async executeWithTokenRefresh<T>(apiCall: () => Promise<T>): Promise<T> {
     try {
-      // Try the API call first
+      checkCircuitBreaker();
       return await apiCall();
     } catch (error: unknown) {
       const errorStatus = getErrorStatus(error);

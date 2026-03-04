@@ -24,7 +24,21 @@ export async function GET() {
       console.log('Organizations installation-status: No organizations found in session');
       return NextResponse.json({ installations: [] });
     }
-    
+
+    // Token mode: PAT validated at sign-in, all orgs are connected
+    const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
+      (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_PRIVATE_KEY);
+
+    if (isTokenMode) {
+      console.log('Organizations installation-status: Token mode — marking all orgs as connected');
+      const orgsWithInstallationStatus = organizations.map(org => ({
+        ...org,
+        isGithubConnected: true,
+        installationId: null,
+      }));
+      return NextResponse.json({ installations: orgsWithInstallationStatus });
+    }
+
     // Get GitHub App service
     const githubAppService = await getService<IGitHubAppService>('GitHubAppService');
     
@@ -52,12 +66,12 @@ export async function GET() {
           install.account.login.toLowerCase() === org.name.toLowerCase()
       );
       
-      const hasAppInstalled = !!installation;
-      console.log(`Organizations installation-status: Org ${org.name} hasAppInstalled=${hasAppInstalled}`);
+      const isGithubConnected = !!installation;
+      console.log(`Organizations installation-status: Org ${org.name} isGithubConnected=${isGithubConnected}`);
       
       return {
         ...org,
-        hasAppInstalled,
+        isGithubConnected,
         installationId: installation?.id || null
       };
     });

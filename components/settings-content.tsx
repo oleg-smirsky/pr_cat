@@ -26,7 +26,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
   // Use the React 'use' hook to resolve the promise
   const organizations = use(organizationsPromise);
   const initialSelectedOrganization =
-    organizations.find((o) => o.hasAppInstalled) || organizations[0] || null;
+    organizations.find((o) => o.isGithubConnected) || organizations[0] || null;
   
   const [selectedOrganization, setSelectedOrganization] =
     useState<OrganizationWithInstallation | null>(initialSelectedOrganization);
@@ -43,7 +43,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
       if (current && nextOrganizations.some((org) => org.id === current.id)) {
         return current;
       }
-      return nextOrganizations.find((org) => org.hasAppInstalled) || nextOrganizations[0] || null;
+      return nextOrganizations.find((org) => org.isGithubConnected) || nextOrganizations[0] || null;
     });
   };
 
@@ -111,7 +111,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
               onOrganizationsUpdated={handleOrganizationsUpdated}
             />
 
-            {selectedOrganization && selectedOrganization.hasAppInstalled && (
+            {selectedOrganization && selectedOrganization.isGithubConnected && (
               <GitHubOrganizationRepositories 
                 organizationId={selectedOrganization.github_id} 
                 organizationName={selectedOrganization.name}
@@ -119,14 +119,14 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
               />
             )}
             
-            {selectedOrganization && !selectedOrganization.hasAppInstalled && (
+            {selectedOrganization && !selectedOrganization.isGithubConnected && (
               <Card>
                 <CardHeader>
                   <CardTitle>Configure Repositories for {selectedOrganization.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Please install the GitHub App for &quot;{selectedOrganization.name}&quot; to configure its repositories.
+                    GitHub is not connected for &quot;{selectedOrganization.name}&quot;. Install the GitHub App or configure a token to manage repositories.
                   </p>
                 </CardContent>
               </Card>
@@ -139,7 +139,7 @@ export function SettingsContent({ organizationsPromise }: SettingsContentProps) 
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    Select an organization with the GitHub App installed to configure its repositories.
+                    Select a connected organization to configure its repositories.
                   </p>
                 </CardContent>
               </Card>

@@ -12,39 +12,36 @@ interface SessionUser {
  * This handles the user initialization logic that was previously in the dashboard
  */
 export async function ensureUserExists(sessionUser: SessionUser): Promise<void> {
-  if (!sessionUser.email) {
-    throw new Error('User email is required')
-  }
-
   try {
     // Try to find user by ID first
     let dbUser = await findUserById(sessionUser.id)
-    
+
     if (!dbUser) {
-      // If not found by ID, try to find by email
-      const userByEmail = await findUserByEmail(sessionUser.email)
-      
-      if (userByEmail) {
-        // User exists with same email but different ID - update their info
-        await updateUser(userByEmail.id, {
-          name: sessionUser.name ?? null,
-          image: sessionUser.image ?? null,
-        })
-        dbUser = userByEmail
-      } else {
-        // No user exists - create new one
-        await createUser({
-          id: sessionUser.id,
-          name: sessionUser.name ?? null,
-          email: sessionUser.email,
-          image: sessionUser.image ?? null,
-        })
+      // If not found by ID and we have an email, try email fallback
+      if (sessionUser.email) {
+        const userByEmail = await findUserByEmail(sessionUser.email)
+
+        if (userByEmail) {
+          await updateUser(userByEmail.id, {
+            name: sessionUser.name ?? null,
+            image: sessionUser.image ?? null,
+          })
+          return
+        }
       }
+
+      // No user exists - create new one (email may be null for private GitHub accounts)
+      await createUser({
+        id: sessionUser.id,
+        name: sessionUser.name ?? null,
+        email: sessionUser.email ?? null,
+        image: sessionUser.image ?? null,
+      })
     } else {
       // User exists - update their info in case it changed
       await updateUser(dbUser.id, {
         name: sessionUser.name ?? null,
-        email: sessionUser.email,
+        email: sessionUser.email ?? null,
         image: sessionUser.image ?? null,
       })
     }
