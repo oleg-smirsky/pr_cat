@@ -14,7 +14,8 @@ import {
   IRepository,
   IGitHubService,
   IGitHubAppService,
-  ICommitAnalyticsService
+  ICommitAnalyticsService,
+  IJobService
 } from '../ports'
 
 // Service registry types
@@ -27,6 +28,7 @@ export type ServiceName =
   | 'GitHubService'
   | 'GitHubAppService'
   | 'CommitAnalyticsService'
+  | 'JobService'
 
 export type ServiceInstance =
   | IPullRequestRepository
@@ -37,6 +39,7 @@ export type ServiceInstance =
   | IGitHubService
   | IGitHubAppService
   | ICommitAnalyticsService
+  | IJobService
 
 export interface ServiceFactory<T = ServiceInstance> {
   (): T | Promise<T>
@@ -139,6 +142,11 @@ export class DIContainer {
       const { DemoCommitAnalyticsService } = await import('../../infrastructure/adapters/demo/commit-analytics.adapter')
       return new DemoCommitAnalyticsService()
     }, true)
+
+    this.register('JobService', async () => {
+      const { SQLiteJobService } = await import('../../infrastructure/adapters/jobs/job.adapter')
+      return new SQLiteJobService()
+    }, true)
   }
 
   /**
@@ -197,6 +205,11 @@ export class DIContainer {
       this.register('CommitAnalyticsService', async () => {
         const { TursoCommitAnalyticsService } = await import('../../infrastructure/adapters/turso/commit-analytics.adapter')
         return new TursoCommitAnalyticsService()
+      }, true)
+
+      this.register('JobService', async () => {
+        const { SQLiteJobService } = await import('../../infrastructure/adapters/jobs/job.adapter')
+        return new SQLiteJobService()
       }, true)
 
       console.log('[DI Container] Production services registered successfully')
