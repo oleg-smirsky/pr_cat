@@ -134,4 +134,12 @@ export interface IGitHubService {
     actions: string[]
     errors?: string[]
   }>
+
+  /**
+   * Get repository contributors from GitHub
+   */
+  getRepositoryContributors(
+    owner: string,
+    repo: string
+  ): Promise<User[]>
 }
