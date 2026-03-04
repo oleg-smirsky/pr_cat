@@ -299,6 +299,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
         name: 'Loading...',
         email: 'Loading...',
         image: null,
+        profile_fetched_at: null,
         created_at: '',
         updated_at: ''
       }

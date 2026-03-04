@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   email TEXT UNIQUE,
   image TEXT,
+  profile_fetched_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

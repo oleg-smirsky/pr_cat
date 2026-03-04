@@ -6,6 +6,7 @@ export interface User {
   name: string | null;
   email: string | null;
   image: string | null;
+  profile_fetched_at: string | null;
   created_at: string;
   updated_at: string;
 }

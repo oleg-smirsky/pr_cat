@@ -15,6 +15,7 @@ type TeamMemberUserRow = {
   u_name: string | null;
   u_email: string | null;
   u_image: string | null;
+  u_profile_fetched_at: string | null;
   u_created_at: string;
   u_updated_at: string;
 };
@@ -86,6 +87,7 @@ export async function findTeamsByOrganizationWithMembers(organizationId: number)
         name: member.name,
         email: member.email,
         image: member.image,
+        profile_fetched_at: null,
         created_at: '',
         updated_at: ''
       } as User
@@ -250,6 +252,7 @@ export async function getTeamMembers(teamId: number): Promise<(TeamMember & { us
       u.name as u_name,
       u.email as u_email,
       u.image as u_image,
+      u.profile_fetched_at as u_profile_fetched_at,
       u.created_at as u_created_at,
       u.updated_at as u_updated_at
     FROM team_members tm
@@ -272,6 +275,7 @@ export async function getTeamMembers(teamId: number): Promise<(TeamMember & { us
       name: row.u_name,
       email: row.u_email,
       image: row.u_image,
+      profile_fetched_at: row.u_profile_fetched_at,
       created_at: row.u_created_at,
       updated_at: row.u_updated_at,
     },

@@ -35,6 +35,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
     user_name: string | null;
     user_email: string | null;
     user_image: string | null;
+    user_profile_fetched_at: string | null;
     user_created_at: string | null;
     user_updated_at: string | null;
   }>(`
@@ -53,6 +54,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,
+      u.profile_fetched_at as user_profile_fetched_at,
       u.created_at as user_created_at,
       u.updated_at as user_updated_at
     FROM teams t
@@ -98,6 +100,7 @@ export async function getTeamsByOrganizationWithMembersOptimized(organizationId:
           name: row.user_name,
           email: row.user_email,
           image: row.user_image,
+          profile_fetched_at: row.user_profile_fetched_at || null,
           created_at: row.user_created_at || '',
           updated_at: row.user_updated_at || ''
         }
@@ -141,6 +144,7 @@ export async function getTeamMembersBatch(teamIds: number[]): Promise<Map<number
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,
+      u.profile_fetched_at as user_profile_fetched_at,
       u.created_at as user_created_at,
       u.updated_at as user_updated_at
     FROM team_members tm

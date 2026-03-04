@@ -195,6 +195,7 @@ export async function findUserWithOrganizations(
     user_name: string | null;
     user_email: string;
     user_image: string | null;
+    user_profile_fetched_at: string | null;
     user_created_at: string;
     user_updated_at: string;
     org_id: number | null;
@@ -212,6 +213,7 @@ export async function findUserWithOrganizations(
       u.name as user_name,
       u.email as user_email,
       u.image as user_image,
+      u.profile_fetched_at as user_profile_fetched_at,
       u.created_at as user_created_at,
       u.updated_at as user_updated_at,
       o.id as org_id,
@@ -240,6 +242,7 @@ export async function findUserWithOrganizations(
     name: results[0].user_name,
     email: results[0].user_email,
     image: results[0].user_image,
+    profile_fetched_at: results[0].user_profile_fetched_at,
     created_at: results[0].user_created_at,
     updated_at: results[0].user_updated_at
   };

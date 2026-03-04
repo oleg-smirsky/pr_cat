@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT,
   email TEXT UNIQUE,
   image TEXT,
+  profile_fetched_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -304,6 +305,13 @@ const MIGRATIONS = [
 
       CREATE INDEX IF NOT EXISTS idx_background_jobs_status ON background_jobs(status);
       CREATE INDEX IF NOT EXISTS idx_background_jobs_next_run ON background_jobs(next_run_at);
+    `
+  },
+  {
+    version: 8,
+    name: 'add_user_profile_fetched_at',
+    sql: `
+      ALTER TABLE users ADD COLUMN profile_fetched_at TEXT;
     `
   }
 ];
