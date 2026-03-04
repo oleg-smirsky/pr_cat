@@ -91,11 +91,12 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [showPopulateDialog, setShowPopulateDialog] = useState(false);
   const [populateTeam, setPopulateTeam] = useState<TeamWithMembers | null>(null);
-  const [repositories, setRepositories] = useState<Array<{ id: number; name: string; full_name: string }>>([]);
+  const [repositories, setRepositories] = useState<Array<{ id: string; name: string; fullName: string }>>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string>('');
   const [repoContributors, setRepoContributors] = useState<Array<{ id: string; name: string | null; email: string | null; avatarUrl: string; login: string }>>([]);
   const [selectedContributorIds, setSelectedContributorIds] = useState<Set<string>>(new Set());
   const [loadingContributors, setLoadingContributors] = useState(false);
+  const [useGitHubSource, setUseGitHubSource] = useState(false);
   const [addingMembers, setAddingMembers] = useState(false);
 
   const [createForm, setCreateForm] = useState<CreateTeamFormData>({
@@ -424,10 +425,11 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     }
   }, [organizationId]);
 
-  const fetchContributors = async (repoId: string) => {
+  const fetchContributors = async (repoId: string, fromGitHub = false) => {
     setLoadingContributors(true);
     try {
-      const response = await fetch(`/api/organizations/${organizationId}/repositories/${repoId}/contributors`);
+      const sourceParam = fromGitHub ? '?source=github' : '';
+      const response = await fetch(`/api/organizations/${organizationId}/repositories/${repoId}/contributors${sourceParam}`);
       if (response.ok) {
         const data = await response.json();
         const contributors = Array.isArray(data) ? data : [];
@@ -449,6 +451,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     setSelectedRepoId('');
     setRepoContributors([]);
     setSelectedContributorIds(new Set());
+    setUseGitHubSource(false);
     setShowPopulateDialog(true);
     fetchRepositories();
   };
@@ -780,6 +783,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
       {/* Add Member Dialog */}
       <Dialog open={showAddMemberDialog} onOpenChange={setShowAddMemberDialog}>
         <DialogContent className="min-w-[50vw] max-w-[90vw] w-[80vw] h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogTitle className="sr-only">Add Member to {selectedTeam?.name}</DialogTitle>
           {/* Search Section */}
           <div className="p-4 border-b shrink-0">
             <div className="flex gap-4 items-end">
@@ -979,7 +983,7 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                 value={selectedRepoId}
                 onValueChange={(value) => {
                   setSelectedRepoId(value);
-                  fetchContributors(value);
+                  fetchContributors(value, useGitHubSource);
                 }}
               >
                 <SelectTrigger className="mt-1">
@@ -988,12 +992,28 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                 <SelectContent>
                   {repositories.map((repo) => (
                     <SelectItem key={repo.id} value={String(repo.id)}>
-                      {repo.full_name || repo.name}
+                      {repo.fullName || repo.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={useGitHubSource}
+                onChange={(e) => {
+                  setUseGitHubSource(e.target.checked);
+                  if (selectedRepoId) {
+                    fetchContributors(selectedRepoId, e.target.checked);
+                  }
+                }}
+                className="rounded border-gray-300"
+              />
+              Load from live GitHub
+              <span className="text-muted-foreground">(slower, but complete history)</span>
+            </label>
 
             {loadingContributors && (
               <div className="text-center py-4">
@@ -1047,8 +1067,15 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{contributor.name || contributor.login || 'Unknown'}</p>
-                        <p className="text-xs text-muted-foreground truncate">{contributor.email || ''}</p>
+                        <p className="text-sm font-medium truncate">
+                          {contributor.name || contributor.login || 'Unknown'}
+                          {contributor.name && contributor.login && contributor.name !== contributor.login && (
+                            <span className="text-muted-foreground font-normal"> @{contributor.login}</span>
+                          )}
+                        </p>
+                        {!contributor.name && contributor.email && (
+                          <p className="text-xs text-muted-foreground truncate">{contributor.email}</p>
+                        )}
                       </div>
                     </label>
                   ))}

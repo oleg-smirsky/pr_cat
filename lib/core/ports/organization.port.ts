@@ -101,7 +101,7 @@ export interface IOrganizationRepository {
 
   /**
    * Get organization members who have contributed to a specific repository.
-   * Uses ingested commit data when available, falls back to GitHub API.
+   * Returns contributors from ingested commit data in the database.
    */
   getRepoContributors(
     organizationId: string,

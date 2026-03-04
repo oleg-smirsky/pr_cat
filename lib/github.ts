@@ -131,7 +131,14 @@ export class GitHubClient {
       return data as GitHubUser;
     });
   }
-  
+
+  async getUser(username: string): Promise<GitHubUser> {
+    return this.executeWithTokenRefresh(async () => {
+      const { data } = await this.octokit.users.getByUsername({ username });
+      return data as GitHubUser;
+    });
+  }
+
   async getUserOrganizations(): Promise<GitHubOrganization[]> {
     return this.executeWithTokenRefresh(async () => {
       try {
