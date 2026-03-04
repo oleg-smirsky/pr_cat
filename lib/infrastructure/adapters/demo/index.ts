@@ -9,6 +9,7 @@ export { DemoAuthService } from './auth.adapter'
 export { DemoOrganizationRepository } from './organization.adapter'
 export { DemoRepository } from './repository.adapter'
 export { DemoGitHubService } from './github.adapter'
+export { DemoCommitAnalyticsService } from './commit-analytics.adapter'
 
 // Export demo data for external use
 export * from './data/demo-data'
