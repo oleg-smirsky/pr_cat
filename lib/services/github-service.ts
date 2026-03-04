@@ -124,7 +124,7 @@ export class GitHubService {
             id: member.id.toString(),
             login: member.login,
             avatar_url: member.avatar_url,
-            name: member.name || member.login
+            name: member.name || null
           });
           
           // Link user to organization if not already linked

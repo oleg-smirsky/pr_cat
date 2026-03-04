@@ -173,7 +173,7 @@ export async function findOrCreateUserByGitHubId(userData: {
   return createUser({
     id: userData.id,
     login: userData.login,
-    name: userData.name || userData.login,
+    name: userData.name || null,
     email: userData.email || null,
     image: userData.avatar_url || null,
   });
