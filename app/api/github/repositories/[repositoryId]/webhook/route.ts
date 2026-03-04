@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { GitHubService } from '@/lib/services';
 import { findRepositoryByGitHubId, setRepositoryTracking } from '@/lib/repositories/repository-repository';
+import { JobRunner } from '@/lib/infrastructure/adapters/jobs/job-runner';
 
 const isTokenMode = Boolean(process.env.GITHUB_TOKEN) &&
   (!process.env.GITHUB_APP_ID || !process.env.GITHUB_APP_PRIVATE_KEY);
@@ -32,11 +33,15 @@ export async function POST(
       }
       await setRepositoryTracking(repository.id, true);
       const [owner, repo] = repository.full_name.split('/');
-      const githubService = new GitHubService(session.accessToken);
-      await githubService.syncRepositoryPullRequests(owner, repo, repository.id);
+      const runner = JobRunner.getInstance();
+      await runner.enqueue('full-repository-sync', `full-repository-sync:${repository.id}`, {
+        repositoryId: repository.id,
+        owner,
+        repo,
+      });
       return NextResponse.json({
         success: true,
-        message: 'Repository tracked and PRs synced (poll mode)',
+        message: 'Repository tracked. Initial sync started in background.',
       });
     } catch (error) {
       console.error('Token mode tracking error:', error);
@@ -88,9 +93,13 @@ export async function DELETE(
         return NextResponse.json({ error: 'Repository not found' }, { status: 404 });
       }
       await setRepositoryTracking(repository.id, false);
+      const runner = JobRunner.getInstance();
+      await runner.cancel(`full-repository-sync:${repository.id}`);
+      await runner.cancel(`sync-repository-prs:${repository.id}`);
+      await runner.cancel(`sync-pr-reviews:${repository.id}`);
       return NextResponse.json({
         success: true,
-        message: 'Repository untracked (poll mode)',
+        message: 'Repository untracked and background jobs cancelled.',
       });
     } catch (error) {
       console.error('Token mode untracking error:', error);

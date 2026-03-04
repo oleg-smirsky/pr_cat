@@ -272,6 +272,30 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_commits_jira_ticket_id ON commits(jira_ticket_id);
       CREATE INDEX IF NOT EXISTS idx_commit_branches_commit_id ON commit_branches(commit_id);
     `
+  },
+  {
+    version: 6,
+    name: 'add_background_jobs',
+    sql: `
+      CREATE TABLE IF NOT EXISTS background_jobs (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        payload TEXT,
+        progress TEXT,
+        error_message TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        next_run_at TEXT,
+        interval_seconds INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_background_jobs_status ON background_jobs(status);
+      CREATE INDEX IF NOT EXISTS idx_background_jobs_next_run ON background_jobs(next_run_at);
+    `
   }
 ];
 
