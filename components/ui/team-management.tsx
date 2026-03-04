@@ -89,6 +89,14 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
+  const [showPopulateDialog, setShowPopulateDialog] = useState(false);
+  const [populateTeam, setPopulateTeam] = useState<TeamWithMembers | null>(null);
+  const [repositories, setRepositories] = useState<Array<{ id: number; name: string; full_name: string }>>([]);
+  const [selectedRepoId, setSelectedRepoId] = useState<string>('');
+  const [repoContributors, setRepoContributors] = useState<Array<{ id: string; name: string | null; email: string | null; avatarUrl: string; login: string }>>([]);
+  const [selectedContributorIds, setSelectedContributorIds] = useState<Set<string>>(new Set());
+  const [loadingContributors, setLoadingContributors] = useState(false);
+  const [addingMembers, setAddingMembers] = useState(false);
 
   const [createForm, setCreateForm] = useState<CreateTeamFormData>({
     name: '',
@@ -141,7 +149,15 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     }
   }, [memberSearch, organizationId, organizationMembers]);
 
+  // Initial load only — runs once per organizationId
+  const initialLoadDone = React.useRef(false);
   useEffect(() => {
+    initialLoadDone.current = false;
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     const loadData = async () => {
       setLoading(true);
       await Promise.all([fetchTeams(), fetchOrgMembers()]);
@@ -310,26 +326,17 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
 
       if (response.ok) {
         toast.success('Member added successfully');
-        // Don't close the dialog - allow adding multiple members
-        // setShowAddMemberDialog(false);
         resetAddMemberForm();
-        
-        // Refresh data in background to get the real server state
-        fetchTeams();
-        
-        // Refresh the selected team data to show the new member with real data
+
+        // Single fetch to sync with server state
         const updatedTeams = await fetch(`/api/organizations/${organizationId}/teams`);
         if (updatedTeams.ok) {
           const data = await updatedTeams.json();
           const serverUpdatedTeam = data.find((t: TeamWithMembers) => t.id === selectedTeam.id);
           if (serverUpdatedTeam) {
             setSelectedTeam(serverUpdatedTeam);
-            setTeams(prevTeams => 
-              prevTeams.map(team => 
-                team.id === selectedTeam.id ? serverUpdatedTeam : team
-              )
-            );
           }
+          setTeams(Array.isArray(data) ? data : []);
         }
       } else {
         // Revert optimistic update on error
@@ -402,6 +409,81 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
     const teamMemberIds = new Set((team.members ?? []).map(m => m.user_id));
     const pool = Array.isArray(orgMembers) ? orgMembers : [];
     return pool.filter(member => !teamMemberIds.has(member.id));
+  };
+
+  const fetchRepositories = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/organizations/${organizationId}/repositories`);
+      if (response.ok) {
+        const data = await response.json();
+        const repos = data.repositories || data;
+        setRepositories(Array.isArray(repos) ? repos : []);
+      }
+    } catch (error) {
+      console.error('Error fetching repositories:', error);
+    }
+  }, [organizationId]);
+
+  const fetchContributors = async (repoId: string) => {
+    setLoadingContributors(true);
+    try {
+      const response = await fetch(`/api/organizations/${organizationId}/repositories/${repoId}/contributors`);
+      if (response.ok) {
+        const data = await response.json();
+        const contributors = Array.isArray(data) ? data : [];
+        const teamMemberIds = new Set((populateTeam?.members ?? []).map(m => m.user_id));
+        const available = contributors.filter((c: { id: string }) => !teamMemberIds.has(c.id));
+        setRepoContributors(available);
+        setSelectedContributorIds(new Set(available.map((c: { id: string }) => c.id)));
+      }
+    } catch (error) {
+      console.error('Error fetching contributors:', error);
+      setRepoContributors([]);
+    } finally {
+      setLoadingContributors(false);
+    }
+  };
+
+  const openPopulateDialog = (team: TeamWithMembers) => {
+    setPopulateTeam(team);
+    setSelectedRepoId('');
+    setRepoContributors([]);
+    setSelectedContributorIds(new Set());
+    setShowPopulateDialog(true);
+    fetchRepositories();
+  };
+
+  const toggleContributor = (id: string) => {
+    setSelectedContributorIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAdd = async () => {
+    if (!populateTeam || selectedContributorIds.size === 0) return;
+    setAddingMembers(true);
+    let addedCount = 0;
+    try {
+      for (const userId of selectedContributorIds) {
+        const response = await fetch(`/api/organizations/${organizationId}/teams/${populateTeam.id}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, role: 'member' })
+        });
+        if (response.ok) addedCount++;
+      }
+      toast.success(`Added ${addedCount} member${addedCount !== 1 ? 's' : ''} to ${populateTeam.name}`);
+      setShowPopulateDialog(false);
+      fetchTeams();
+    } catch (error) {
+      console.error('Error bulk adding members:', error);
+      toast.error('Failed to add some members');
+    } finally {
+      setAddingMembers(false);
+    }
   };
 
   if (loading) {
@@ -560,9 +642,17 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
                         {(team.member_count ?? (team.members?.length ?? 0))} {(team.member_count ?? (team.members?.length ?? 0)) === 1 ? 'member' : 'members'}
                       </span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openPopulateDialog(team)}
+                    >
+                      <Users className="h-4 w-4 mr-1" />
+                      Populate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => openAddMemberDialog(team)}
                     >
                       <UserPlus className="h-4 w-4 mr-1" />
@@ -872,6 +962,111 @@ export function TeamManagement({ organizationId, organizationMembers, onRefreshM
               <Button variant="outline" onClick={resetAddMemberForm}>Clear Search</Button>
               <Button onClick={() => setShowAddMemberDialog(false)} className="bg-blue-600 hover:bg-blue-700">Close</Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Populate from Repo Dialog */}
+      <Dialog open={showPopulateDialog} onOpenChange={setShowPopulateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Populate {populateTeam?.name} from Repository</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="repo-select">Repository</Label>
+              <Select
+                value={selectedRepoId}
+                onValueChange={(value) => {
+                  setSelectedRepoId(value);
+                  fetchContributors(value);
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select a repository..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {repositories.map((repo) => (
+                    <SelectItem key={repo.id} value={String(repo.id)}>
+                      {repo.full_name || repo.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {loadingContributors && (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />
+                <p className="mt-2 text-sm text-muted-foreground">Loading contributors...</p>
+              </div>
+            )}
+
+            {!loadingContributors && selectedRepoId && repoContributors.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm font-medium">No new contributors found</p>
+                <p className="text-xs">All contributors are already on this team, or no commit data is available.</p>
+              </div>
+            )}
+
+            {!loadingContributors && repoContributors.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">{selectedContributorIds.size} of {repoContributors.length} selected</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedContributorIds.size === repoContributors.length) {
+                        setSelectedContributorIds(new Set());
+                      } else {
+                        setSelectedContributorIds(new Set(repoContributors.map(c => c.id)));
+                      }
+                    }}
+                  >
+                    {selectedContributorIds.size === repoContributors.length ? 'Deselect all' : 'Select all'}
+                  </Button>
+                </div>
+                <div className="max-h-64 overflow-auto divide-y divide-border/50 border rounded-md">
+                  {repoContributors.map((contributor) => (
+                    <label
+                      key={contributor.id}
+                      className="flex items-center gap-3 p-2 hover:bg-muted/50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedContributorIds.has(contributor.id)}
+                        onChange={() => toggleContributor(contributor.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={contributor.avatarUrl || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {contributor.name?.substring(0, 2).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{contributor.name || contributor.login || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{contributor.email || ''}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={handleBulkAdd}
+              disabled={selectedContributorIds.size === 0 || addingMembers}
+              className="flex-1"
+            >
+              {addingMembers ? 'Adding...' : `Add ${selectedContributorIds.size} member${selectedContributorIds.size !== 1 ? 's' : ''}`}
+            </Button>
+            <Button variant="outline" onClick={() => setShowPopulateDialog(false)}>
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
