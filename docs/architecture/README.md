@@ -37,6 +37,11 @@ For new API behavior:
 
 The app supports three modes: **OAuth** (GitHub App + OAuth, full features), **Token** (`GITHUB_TOKEN` PAT, no webhooks — poll-based sync), and **Demo** (no credentials, mock data).
 
+## Infrastructure subsystems
+
+- [Background Jobs](./background-jobs.md) — SQLite-backed job queue for async repository sync
+- [GitHub Integration](./github-integration.md) — GitHub API client, circuit breaker, webhook handling
+
 ## Source of truth
 
 - Machine-readable manifest: [`docs/architecture/repository-manifest.json`](./repository-manifest.json)
