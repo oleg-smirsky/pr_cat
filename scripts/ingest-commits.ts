@@ -139,6 +139,24 @@ async function ingestRepoCommits(
         } else {
           stats.skipped++;
         }
+
+        // Insert into commit_jira_tickets join table
+        if (parsed.jiraTicketIds.length > 0) {
+          const commitRows = await tx.query<{ id: number }>(
+            'SELECT id FROM commits WHERE sha = ? AND repository_id = ?',
+            [parsed.sha, repositoryId],
+          );
+
+          if (commitRows.length > 0) {
+            const commitId = commitRows[0].id;
+            for (const ticketId of parsed.jiraTicketIds) {
+              await tx.execute(
+                'INSERT OR IGNORE INTO commit_jira_tickets (commit_id, jira_ticket_id) VALUES (?, ?)',
+                [commitId, ticketId],
+              );
+            }
+          }
+        }
       }
     });
   }
