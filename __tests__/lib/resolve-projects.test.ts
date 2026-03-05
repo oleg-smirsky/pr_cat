@@ -56,6 +56,19 @@ describe('resolveProjectForCommit', () => {
     const r = resolveProjectForCommit({ ticketIds: ['BFW-7763', 'BFW-8447'], repositoryId: 10, message: 'msg' }, ctx);
     expect(r!.level).toBe('epic');
   });
+
+  it('resolves via epic mapping when ticket IS itself a mapped epic (self-reference)', () => {
+    const issuesWithEpicSelfRef = new Map([
+      ...jiraIssues,
+      ['BFW-8007', { epicKey: null, projectKey: 'BFW' }],
+    ]);
+    const ctxWithSelfRef = { ...ctx, jiraIssues: issuesWithEpicSelfRef };
+    const r = resolveProjectForCommit(
+      { ticketIds: ['BFW-8007'], repositoryId: 10, message: 'some msg' },
+      ctxWithSelfRef,
+    );
+    expect(r).toEqual({ projectId: 1, level: 'epic' });
+  });
 });
 
 describe('extractMessagePrefix', () => {

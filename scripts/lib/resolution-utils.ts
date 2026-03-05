@@ -3,6 +3,7 @@
  *
  * Cascade order (stop at first match):
  *   1. Epic mapping      — ticket → jira issue epic_key → epicMappings → project_id
+ *                           OR ticket key itself in epicMappings (epic self-reference)
  *   2. Jira project      — ticket → jira issue project_key → projectMappings → project_id
  *   3. Message prefix    — commit message prefix (e.g. "INDX:") → prefixMappings → project_id
  *   4. Repo default      — repository_id → repoDefaults → project_id
@@ -59,10 +60,22 @@ export function resolveProjectForCommit(
   // Level 1: epic mapping — check all tickets
   for (const ticketId of commit.ticketIds) {
     const issue = ctx.jiraIssues.get(ticketId);
-    if (!issue || !issue.epicKey) continue;
-    const projectId = ctx.epicMappings.get(issue.epicKey);
-    if (projectId !== undefined) {
-      return { projectId, level: 'epic' };
+    if (!issue) continue;
+
+    // Check if the ticket belongs to a mapped epic
+    if (issue.epicKey) {
+      const projectId = ctx.epicMappings.get(issue.epicKey);
+      if (projectId !== undefined) {
+        return { projectId, level: 'epic' };
+      }
+    }
+
+    // Self-reference: ticket has no parent epic but IS itself a mapped epic
+    if (!issue.epicKey) {
+      const projectId = ctx.epicMappings.get(ticketId);
+      if (projectId !== undefined) {
+        return { projectId, level: 'epic' };
+      }
     }
   }
 
