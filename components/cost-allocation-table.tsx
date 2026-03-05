@@ -34,6 +34,7 @@ import {
 
 interface CostAllocationResult {
   month: string
+  monthEnd?: string
   team: { id: number; name: string } | null
   members: Array<{
     userId: string | null
@@ -52,6 +53,7 @@ interface CostAllocationResult {
 
 interface ProjectAllocationResult {
   month: string
+  monthEnd?: string
   team: { id: number; name: string } | null
   allocations: Array<{
     project: { id: number; name: string } | null
@@ -381,6 +383,8 @@ function ProjectTable({
 export function CostAllocationTable() {
   const { data: session } = useSession()
   const [month, setMonth] = React.useState(getCurrentMonth)
+  const [monthEnd, setMonthEnd] = React.useState<string | undefined>(undefined)
+  const [rangeMode, setRangeMode] = React.useState(false)
   const [teamId, setTeamId] = React.useState<number | undefined>(undefined)
   const [groupBy, setGroupBy] = React.useState<GroupBy>("repository")
 
@@ -437,6 +441,9 @@ export function CostAllocationTable() {
     fetchTeams()
   }, [session?.organizations])
 
+  // Effective end month for API calls
+  const effectiveMonthEnd = rangeMode ? monthEnd : undefined
+
   // Load saved team cost when month or teamId changes
   React.useEffect(() => {
     if (teamId === undefined) {
@@ -483,6 +490,9 @@ export function CostAllocationTable() {
       setLoading(true)
       try {
         const params = new URLSearchParams({ month })
+        if (effectiveMonthEnd) {
+          params.set("monthEnd", effectiveMonthEnd)
+        }
         if (teamId !== undefined) {
           params.set("teamId", String(teamId))
         }
@@ -523,7 +533,7 @@ export function CostAllocationTable() {
     return () => {
       cancelled = true
     }
-  }, [month, teamId, groupBy])
+  }, [month, effectiveMonthEnd, teamId, groupBy])
 
   const handleSaveCost = async () => {
     if (
@@ -589,7 +599,7 @@ export function CostAllocationTable() {
         {/* Controls row */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="cost-month">Month</Label>
+            <Label htmlFor="cost-month">{rangeMode ? "From" : "Month"}</Label>
             <Input
               id="cost-month"
               type="month"
@@ -597,6 +607,41 @@ export function CostAllocationTable() {
               onChange={(e) => setMonth(e.target.value)}
               className="w-40"
             />
+          </div>
+
+          {rangeMode && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cost-month-end">To</Label>
+              <Input
+                id="cost-month-end"
+                type="month"
+                value={monthEnd ?? month}
+                min={month}
+                onChange={(e) => setMonthEnd(e.target.value)}
+                className="w-40"
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label>Period</Label>
+            <ToggleGroup
+              type="single"
+              value={rangeMode ? "range" : "single"}
+              onValueChange={(val) => {
+                if (val === "range") {
+                  setRangeMode(true)
+                  if (!monthEnd) setMonthEnd(month)
+                } else if (val === "single") {
+                  setRangeMode(false)
+                }
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="single">Month</ToggleGroupItem>
+              <ToggleGroupItem value="range">Range</ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <div className="space-y-1.5">
@@ -726,7 +771,7 @@ export function CostAllocationTable() {
           <LoadingSkeleton />
         ) : !hasData ? (
           <div className="text-muted-foreground py-8 text-center text-sm">
-            No commit data found for {month}.
+            No commit data found for {effectiveMonthEnd ? `${month} – ${effectiveMonthEnd}` : month}.
           </div>
         ) : groupBy === "project" && projectData ? (
           <ProjectTable data={projectData} teamCost={effectiveTeamCost} />

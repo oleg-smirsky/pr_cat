@@ -3,10 +3,10 @@
  * Implements ICommitAnalyticsService using hardcoded mock data
  */
 
-import { ICommitAnalyticsService, CostAllocationResult, CostAllocationByProjectResult } from '../../../core/ports/commit-analytics.port';
+import { ICommitAnalyticsService, CostAllocationParams, CostAllocationResult, CostAllocationByProjectResult } from '../../../core/ports/commit-analytics.port';
 
 export class DemoCommitAnalyticsService implements ICommitAnalyticsService {
-  async getCostAllocation(params: { month: string; teamId?: number }): Promise<CostAllocationResult> {
+  async getCostAllocation(params: CostAllocationParams): Promise<CostAllocationResult> {
     const totalCommits = 400;
     return {
       month: params.month,
@@ -42,10 +42,7 @@ export class DemoCommitAnalyticsService implements ICommitAnalyticsService {
     };
   }
 
-  async getCostAllocationByProject(params: {
-    month: string;
-    teamId?: number;
-  }): Promise<CostAllocationByProjectResult> {
+  async getCostAllocationByProject(params: CostAllocationParams): Promise<CostAllocationByProjectResult> {
     return {
       month: params.month,
       team: params.teamId ? { id: params.teamId, name: 'Demo Team' } : null,

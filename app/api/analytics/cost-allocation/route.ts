@@ -10,10 +10,25 @@ const handler = async (
 ): Promise<NextResponse> => {
   const { searchParams } = new URL(request.url);
   const month = searchParams.get('month');
+  const monthEnd = searchParams.get('monthEnd');
 
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return NextResponse.json(
       { error: 'month parameter required (YYYY-MM format)' },
+      { status: 400 }
+    );
+  }
+
+  if (monthEnd && !/^\d{4}-\d{2}$/.test(monthEnd)) {
+    return NextResponse.json(
+      { error: 'monthEnd must be YYYY-MM format' },
+      { status: 400 }
+    );
+  }
+
+  if (monthEnd && monthEnd < month) {
+    return NextResponse.json(
+      { error: 'monthEnd must not be before month' },
       { status: 400 }
     );
   }
@@ -29,16 +44,17 @@ const handler = async (
   }
 
   const groupBy = searchParams.get('groupBy');
+  const params = { month, monthEnd: monthEnd ?? undefined, teamId };
 
   try {
     const service = await ServiceLocator.getCommitAnalyticsService();
 
     if (groupBy === 'project') {
-      const result = await service.getCostAllocationByProject({ month, teamId });
+      const result = await service.getCostAllocationByProject(params);
       return NextResponse.json(result);
     }
 
-    const result = await service.getCostAllocation({ month, teamId });
+    const result = await service.getCostAllocation(params);
     return NextResponse.json(result);
   } catch (error) {
     console.error('Cost allocation error:', error);

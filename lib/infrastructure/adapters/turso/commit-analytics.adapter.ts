@@ -5,6 +5,7 @@
 
 import {
   ICommitAnalyticsService,
+  CostAllocationParams,
   CostAllocationResult,
   CostAllocationMember,
   CostAllocationByProjectResult,
@@ -32,12 +33,9 @@ interface TeamRow {
 
 export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
 
-  async getCostAllocation(params: {
-    month: string;
-    teamId?: number;
-  }): Promise<CostAllocationResult> {
-    const { month, teamId } = params
-    const [timeMin, timeMax] = this.getMonthRange(month)
+  async getCostAllocation(params: CostAllocationParams): Promise<CostAllocationResult> {
+    const { month, monthEnd, teamId } = params
+    const [timeMin, timeMax] = this.getDateRange(month, monthEnd)
 
     const rows = teamId
       ? await this.queryWithTeam(timeMin, timeMax, teamId)
@@ -52,15 +50,12 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
       team = teamRows.length > 0 ? { id: teamRows[0].id, name: teamRows[0].name } : null
     }
 
-    return this.buildResult(month, team, rows)
+    return this.buildResult(month, monthEnd, team, rows)
   }
 
-  async getCostAllocationByProject(params: {
-    month: string;
-    teamId?: number;
-  }): Promise<CostAllocationByProjectResult> {
-    const { month, teamId } = params
-    const [timeMin, timeMax] = this.getMonthRange(month)
+  async getCostAllocationByProject(params: CostAllocationParams): Promise<CostAllocationByProjectResult> {
+    const { month, monthEnd, teamId } = params
+    const [timeMin, timeMax] = this.getDateRange(month, monthEnd)
 
     let team: { id: number; name: string } | null = null
     if (teamId) {
@@ -105,7 +100,7 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
         : 0,
     }))
 
-    return { month, team, allocations, totalCommits }
+    return { month, monthEnd, team, allocations, totalCommits }
   }
 
   private async queryAll(timeMin: string, timeMax: string): Promise<CommitAggregationRow[]> {
@@ -150,6 +145,7 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
 
   private buildResult(
     month: string,
+    monthEnd: string | undefined,
     team: { id: number; name: string } | null,
     rows: CommitAggregationRow[]
   ): CostAllocationResult {
@@ -202,6 +198,7 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
 
     return {
       month,
+      monthEnd,
       team,
       members,
       repoTotals,
@@ -209,12 +206,13 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
     }
   }
 
-  private getMonthRange(month: string): [string, string] {
-    const [yearStr, monthStr] = month.split('-')
+  private getDateRange(month: string, monthEnd?: string): [string, string] {
+    const timeMin = `${month}-01`
+
+    const endMonth = monthEnd ?? month
+    const [yearStr, monthStr] = endMonth.split('-')
     const year = parseInt(yearStr, 10)
     const monthNum = parseInt(monthStr, 10)
-
-    const timeMin = `${month}-01`
 
     let nextYear = year
     let nextMonth = monthNum + 1

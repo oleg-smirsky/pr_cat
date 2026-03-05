@@ -15,7 +15,8 @@ export interface CostAllocationMember {
 }
 
 export interface CostAllocationResult {
-  month: string;
+  month: string;          // start month
+  monthEnd?: string;      // end month if range
   team: { id: number; name: string } | null;
   members: CostAllocationMember[];
   repoTotals: Array<{
@@ -35,19 +36,19 @@ export interface ProjectAllocation {
 
 export interface CostAllocationByProjectResult {
   month: string;
+  monthEnd?: string;
   team: { id: number; name: string } | null;
   allocations: ProjectAllocation[];
   totalCommits: number;
 }
 
-export interface ICommitAnalyticsService {
-  getCostAllocation(params: {
-    month: string;       // YYYY-MM
-    teamId?: number;
-  }): Promise<CostAllocationResult>;
+export interface CostAllocationParams {
+  month: string;         // YYYY-MM (start month)
+  monthEnd?: string;     // YYYY-MM (end month, inclusive). If omitted, single month.
+  teamId?: number;
+}
 
-  getCostAllocationByProject(params: {
-    month: string;
-    teamId?: number;
-  }): Promise<CostAllocationByProjectResult>;
+export interface ICommitAnalyticsService {
+  getCostAllocation(params: CostAllocationParams): Promise<CostAllocationResult>;
+  getCostAllocationByProject(params: CostAllocationParams): Promise<CostAllocationByProjectResult>;
 }
