@@ -15,11 +15,9 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  login TEXT,
   name TEXT,
   email TEXT UNIQUE,
   image TEXT,
-  profile_fetched_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
