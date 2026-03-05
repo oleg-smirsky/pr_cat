@@ -311,6 +311,21 @@ const MIGRATIONS = [
     sql: `
       ALTER TABLE users ADD COLUMN profile_fetched_at TEXT;
     `
+  },
+  {
+    version: 9,
+    name: 'add_commit_jira_tickets_and_org_to_projects',
+    sql: `
+      CREATE TABLE IF NOT EXISTS commit_jira_tickets (
+        commit_id INTEGER NOT NULL REFERENCES commits(id) ON DELETE CASCADE,
+        jira_ticket_id TEXT NOT NULL,
+        PRIMARY KEY (commit_id, jira_ticket_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_commit_jira_tickets_ticket ON commit_jira_tickets(jira_ticket_id);
+
+      ALTER TABLE projects ADD COLUMN organization_id INTEGER REFERENCES organizations(id);
+    `
   }
 ];
 
