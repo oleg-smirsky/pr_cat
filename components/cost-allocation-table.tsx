@@ -244,8 +244,8 @@ function RepositoryTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.members.map((member) => (
-            <TableRow key={member.userId ?? member.name}>
+          {data.members.map((member, idx) => (
+            <TableRow key={`${member.userId ?? member.name}-${idx}`}>
               <TableCell className="font-medium">
                 {member.name}
               </TableCell>

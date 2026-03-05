@@ -153,7 +153,9 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
     const memberMap = new Map<string, CostAllocationMember>()
 
     for (const row of rows) {
-      const key = `${row.author_id ?? ''}::${row.author_name}`
+      // Group by author_id when available (ignores name variations),
+      // fall back to author_name for unknown authors
+      const key = row.author_id ?? `name::${row.author_name}`
       let member = memberMap.get(key)
       if (!member) {
         member = {
