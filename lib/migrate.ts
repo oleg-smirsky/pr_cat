@@ -406,6 +406,22 @@ const MIGRATIONS = [
         created_at TEXT DEFAULT (datetime('now'))
       );
     `
+  },
+  {
+    version: 14,
+    name: 'add_branch_project_mappings',
+    sql: `
+      CREATE TABLE IF NOT EXISTS branch_project_mappings (
+        id INTEGER PRIMARY KEY,
+        prefix TEXT NOT NULL UNIQUE,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS branch_exclusions (
+        branch_name TEXT PRIMARY KEY
+      );
+    `
   }
 ];
 
