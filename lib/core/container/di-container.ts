@@ -15,7 +15,8 @@ import {
   IGitHubService,
   IGitHubAppService,
   ICommitAnalyticsService,
-  IJobService
+  IJobService,
+  ITeamCostService
 } from '../ports'
 
 // Service registry types
@@ -29,6 +30,7 @@ export type ServiceName =
   | 'GitHubAppService'
   | 'CommitAnalyticsService'
   | 'JobService'
+  | 'TeamCostService'
 
 export type ServiceInstance =
   | IPullRequestRepository
@@ -40,6 +42,7 @@ export type ServiceInstance =
   | IGitHubAppService
   | ICommitAnalyticsService
   | IJobService
+  | ITeamCostService
 
 export interface ServiceFactory<T = ServiceInstance> {
   (): T | Promise<T>
@@ -147,6 +150,11 @@ export class DIContainer {
       const { SQLiteJobService } = await import('../../infrastructure/adapters/jobs/job.adapter')
       return new SQLiteJobService()
     }, true)
+
+    this.register('TeamCostService', async () => {
+      const { DemoTeamCostService } = await import('../../infrastructure/adapters/demo/team-cost.adapter')
+      return new DemoTeamCostService()
+    }, true)
   }
 
   /**
@@ -210,6 +218,11 @@ export class DIContainer {
       this.register('JobService', async () => {
         const { SQLiteJobService } = await import('../../infrastructure/adapters/jobs/job.adapter')
         return new SQLiteJobService()
+      }, true)
+
+      this.register('TeamCostService', async () => {
+        const { TursoTeamCostService } = await import('../../infrastructure/adapters/turso/team-cost.adapter')
+        return new TursoTeamCostService()
       }, true)
 
       console.log('[DI Container] Production services registered successfully')

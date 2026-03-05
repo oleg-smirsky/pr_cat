@@ -350,6 +350,24 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_jira_issues_epic_key ON jira_issues(epic_key);
       CREATE INDEX IF NOT EXISTS idx_jira_issues_parent_key ON jira_issues(parent_key);
     `
+  },
+  {
+    version: 11,
+    name: 'add_team_costs_table',
+    sql: `
+      CREATE TABLE IF NOT EXISTS team_costs (
+        id INTEGER PRIMARY KEY,
+        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        month TEXT NOT NULL,
+        total_cost REAL NOT NULL,
+        headcount INTEGER NOT NULL,
+        currency TEXT DEFAULT 'CZK',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(team_id, month)
+      );
+      CREATE INDEX IF NOT EXISTS idx_team_costs_team_month ON team_costs(team_id, month);
+    `
   }
 ];
 
