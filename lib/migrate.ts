@@ -368,6 +368,32 @@ const MIGRATIONS = [
       );
       CREATE INDEX IF NOT EXISTS idx_team_costs_team_month ON team_costs(team_id, month);
     `
+  },
+  {
+    version: 12,
+    name: 'add_project_mapping_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS jira_epic_mappings (
+        id INTEGER PRIMARY KEY,
+        epic_key TEXT NOT NULL UNIQUE,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS jira_project_mappings (
+        id INTEGER PRIMARY KEY,
+        jira_project_key TEXT NOT NULL UNIQUE,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS repo_project_defaults (
+        id INTEGER PRIMARY KEY,
+        repository_id INTEGER NOT NULL UNIQUE REFERENCES repositories(id) ON DELETE CASCADE,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `
   }
 ];
 
