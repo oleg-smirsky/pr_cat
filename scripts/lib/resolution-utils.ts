@@ -54,7 +54,9 @@ export function extractMessagePrefix(message: string): string | null {
  * Excluded: exact matches in the exclusion list, plus RELEASE* and REL_* prefixes.
  */
 function isBranchExcluded(branch: string, exclusions: string[]): boolean {
-  if (exclusions.includes(branch)) return true;
+  for (const excl of exclusions) {
+    if (branch.startsWith(excl)) return true;
+  }
   if (branch.startsWith('RELEASE') || branch.startsWith('REL_')) return true;
   return false;
 }
