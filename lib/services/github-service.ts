@@ -133,6 +133,21 @@ export class GitHubService {
       );
       
       console.log(`Successfully synced ${members.length} members for organization ${organizationName}`);
+
+      // Enqueue background job to fetch full profiles for members missing real names
+      try {
+        const { JobRunner } = await import('@/lib/infrastructure/adapters/jobs/job-runner');
+        const runner = JobRunner.getInstance();
+        await runner.enqueue(
+          'backfill-user-profiles',
+          `backfill-user-profiles:${org.id}`,
+          { organizationId: org.id }
+        );
+        console.log(`Enqueued backfill-user-profiles job for organization ${org.id}`);
+      } catch (err) {
+        // Don't fail sync if job enqueue fails (runner might not be started in all environments)
+        console.warn('Failed to enqueue backfill-user-profiles job:', err);
+      }
     } catch (error) {
       console.error(`Error syncing members for organization ${organizationName}:`, error);
       // Don't throw - this is not critical for the main sync

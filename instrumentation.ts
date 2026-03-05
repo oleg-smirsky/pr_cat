@@ -4,6 +4,7 @@ export async function register() {
     const { FullRepositorySyncHandler } = await import('@/lib/jobs/handlers/full-repository-sync')
     const { SyncRepositoryPrsHandler } = await import('@/lib/jobs/handlers/sync-repository-prs')
     const { SyncPrReviewsHandler } = await import('@/lib/jobs/handlers/sync-pr-reviews')
+    const { BackfillUserProfilesHandler } = await import('@/lib/jobs/handlers/backfill-user-profiles')
 
     const runner = JobRunner.getInstance()
 
@@ -22,6 +23,10 @@ export async function register() {
       getAccessToken
     ))
     runner.registerHandler('sync-pr-reviews', new SyncPrReviewsHandler(
+      runner.getJobService(),
+      getAccessToken
+    ))
+    runner.registerHandler('backfill-user-profiles', new BackfillUserProfilesHandler(
       runner.getJobService(),
       getAccessToken
     ))
