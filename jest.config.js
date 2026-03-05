@@ -35,7 +35,7 @@ const config = {
       statements: 60,
     },
   },
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.claude/worktrees/'],
+  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.claude/worktree/'],
   moduleDirectories: ['node_modules', '<rootDir>'],
   testTimeout: 30000,
   // Transform TypeScript files

@@ -20,7 +20,8 @@
     "ingest-commits": "npx tsx scripts/ingest-commits.ts",
     "fetch-jira-issues": "npx tsx scripts/fetch-jira-issues.ts",
     "ingest-jira-issues": "npx tsx scripts/ingest-jira-issues.ts",
-    "resolve-projects": "npx tsx scripts/resolve-projects.ts"
+    "resolve-projects": "npx tsx scripts/resolve-projects.ts",
+    "seed-mappings": "npx tsx scripts/seed-mappings.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",

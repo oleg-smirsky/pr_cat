@@ -1,9 +1,10 @@
 #!/usr/bin/env npx tsx
 /**
- * Resolve project_id for commits using a three-level cascade:
- *   1. Jira epic mapping   (epic_key → project_id)
- *   2. Jira project mapping (jira_project_key → project_id)
- *   3. Repository default   (repository_id → project_id)
+ * Resolve project_id for commits using a cascade:
+ *   1. Jira epic mapping     (epic_key → project_id)
+ *   2. Jira project mapping  (jira_project_key → project_id)
+ *   3. Message prefix        (commit message prefix → project_id)
+ *   4. Repository default    (repository_id → project_id)
  *
  * Usage:
  *   pnpm resolve-projects           # only unresolved commits (project_id IS NULL)
@@ -12,7 +13,8 @@
  * Requires TURSO_URL (and optionally TURSO_TOKEN) environment variables.
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
 import { query, execute, transaction } from '@/lib/db';
 import {
   resolveProjectForCommit,
@@ -25,6 +27,7 @@ const BATCH_SIZE = 100;
 interface CommitRow {
   id: number;
   repository_id: number;
+  message: string;
 }
 
 interface TicketRow {
@@ -32,18 +35,22 @@ interface TicketRow {
   jira_ticket_id: string;
 }
 
-/** Load all three mapping tables into memory */
+/** Load all mapping tables into memory */
 async function loadMappings(): Promise<{
   epicMappings: Map<string, number>;
   projectMappings: Map<string, number>;
+  prefixMappings: Map<string, number>;
   repoDefaults: Map<number, number>;
 }> {
-  const [epicRows, projRows, repoRows] = await Promise.all([
+  const [epicRows, projRows, prefixRows, repoRows] = await Promise.all([
     query<{ epic_key: string; project_id: number }>(
       'SELECT epic_key, project_id FROM jira_epic_mappings',
     ),
     query<{ jira_project_key: string; project_id: number }>(
       'SELECT jira_project_key, project_id FROM jira_project_mappings',
+    ),
+    query<{ prefix: string; project_id: number }>(
+      'SELECT prefix, project_id FROM commit_prefix_mappings',
     ),
     query<{ repository_id: number; project_id: number }>(
       'SELECT repository_id, project_id FROM repo_project_defaults',
@@ -53,6 +60,7 @@ async function loadMappings(): Promise<{
   return {
     epicMappings: new Map(epicRows.map(r => [r.epic_key, r.project_id])),
     projectMappings: new Map(projRows.map(r => [r.jira_project_key, r.project_id])),
+    prefixMappings: new Map(prefixRows.map(r => [r.prefix, r.project_id])),
     repoDefaults: new Map(repoRows.map(r => [r.repository_id, r.project_id])),
   };
 }
@@ -88,21 +96,21 @@ async function main(): Promise<void> {
   const force = process.argv.includes('--force');
 
   console.log('Loading mapping tables...');
-  const { epicMappings, projectMappings, repoDefaults } = await loadMappings();
+  const { epicMappings, projectMappings, prefixMappings, repoDefaults } = await loadMappings();
   console.log(
-    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Repo defaults: ${repoDefaults.size}`,
+    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Prefix mappings: ${prefixMappings.size}, Repo defaults: ${repoDefaults.size}`,
   );
 
   console.log('Loading Jira issues...');
   const jiraIssues = await loadJiraIssues();
   console.log(`  Jira issues: ${jiraIssues.size}`);
 
-  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, repoDefaults };
+  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, prefixMappings, repoDefaults };
 
   // Load commits
   const whereClause = force ? '' : 'WHERE project_id IS NULL';
   const commits = await query<CommitRow>(
-    `SELECT id, repository_id FROM commits ${whereClause} ORDER BY id`,
+    `SELECT id, repository_id, message FROM commits ${whereClause} ORDER BY id`,
   );
   console.log(`\nCommits to process: ${commits.length}${force ? ' (--force: all)' : ' (unresolved only)'}`);
 
@@ -112,7 +120,7 @@ async function main(): Promise<void> {
   }
 
   // Stats per level
-  const stats = { epic: 0, jira_project: 0, repo_default: 0, unallocated: 0, total: 0 };
+  const stats = { epic: 0, jira_project: 0, message_prefix: 0, repo_default: 0, unallocated: 0, total: 0 };
 
   // Process in batches
   for (let i = 0; i < commits.length; i += BATCH_SIZE) {
@@ -126,7 +134,7 @@ async function main(): Promise<void> {
       for (const commit of batch) {
         const ticketIds = ticketMap.get(commit.id) ?? [];
         const result = resolveProjectForCommit(
-          { ticketIds, repositoryId: commit.repository_id },
+          { ticketIds, repositoryId: commit.repository_id, message: commit.message },
           ctx,
         );
 
@@ -154,6 +162,7 @@ async function main(): Promise<void> {
   console.log(`  Total:          ${stats.total}`);
   console.log(`  Epic mapping:   ${stats.epic}`);
   console.log(`  Jira project:   ${stats.jira_project}`);
+  console.log(`  Message prefix: ${stats.message_prefix}`);
   console.log(`  Repo default:   ${stats.repo_default}`);
   console.log(`  Unallocated:    ${stats.unallocated}`);
 }

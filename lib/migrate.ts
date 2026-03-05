@@ -394,6 +394,18 @@ const MIGRATIONS = [
         created_at TEXT DEFAULT (datetime('now'))
       );
     `
+  },
+  {
+    version: 13,
+    name: 'add_commit_prefix_mappings',
+    sql: `
+      CREATE TABLE IF NOT EXISTS commit_prefix_mappings (
+        id INTEGER PRIMARY KEY,
+        prefix TEXT NOT NULL UNIQUE,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `
   }
 ];
 
