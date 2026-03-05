@@ -16,6 +16,13 @@ jest.mock('@/lib/db', () => ({
   getConnectionStatus: jest.fn(() => ({ isConnected: true, hasClient: true })),
 }));
 
+// Mock GitHub client to prevent octokit ESM import
+jest.mock('@/lib/github', () => ({
+  GitHubClient: jest.fn(),
+  createGitHubClient: jest.fn(),
+  createGitHubInstallationClient: jest.fn(),
+}));
+
 // Mock repositories
 jest.mock('@/lib/repositories/user-repository', () => ({
   getOrganizationRole: jest.fn(),

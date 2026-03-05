@@ -264,24 +264,33 @@ describe('Team Repository', () => {
     it('should return team members with user data', async () => {
       const membersWithUsers = [
         {
-          ...mockTeamMember,
-          user_id: 'user-123',
-          user_name: 'Test User',
-          user_email: 'test@example.com',
-          user_image: 'https://example.com/avatar.jpg',
-          user_created_at: '2024-01-01T00:00:00Z',
-          user_updated_at: '2024-01-01T00:00:00Z',
+          tm_id: 1,
+          tm_team_id: 1,
+          tm_user_id: 'user-123',
+          tm_role: 'member',
+          tm_joined_at: '2024-01-01T00:00:00Z',
+          tm_created_at: '2024-01-01T00:00:00Z',
+          tm_updated_at: '2024-01-01T00:00:00Z',
+          u_id: 'user-123',
+          u_login: 'testuser',
+          u_name: 'Test User',
+          u_email: 'test@example.com',
+          u_image: 'https://example.com/avatar.jpg',
+          u_profile_fetched_at: null,
+          u_created_at: '2024-01-01T00:00:00Z',
+          u_updated_at: '2024-01-01T00:00:00Z',
         },
       ];
-      
+
       mockQuery.mockResolvedValueOnce(membersWithUsers);
-      
+
       const result = await getTeamMembers(1);
-      
+
       expect(result).toHaveLength(1);
-      // The function transforms the raw data to include a user object
-      expect(result[0]).toHaveProperty('user_id');
-      expect(result[0]).toHaveProperty('user_name');
+      // The function transforms the raw data to include a nested user object
+      expect(result[0]).toHaveProperty('user_id', 'user-123');
+      expect(result[0].user).toHaveProperty('name', 'Test User');
+      expect(result[0].user).toHaveProperty('login', 'testuser');
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('FROM team_members tm'),
         [1]
@@ -347,7 +356,7 @@ describe('Team Repository', () => {
       expect(result).toEqual(users);
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('LOWER(u.name) LIKE LOWER(?)'),
-        [1, '%test%', '%test%']
+        [1, '%test%', '%test%', '%test%']
       );
     });
 
