@@ -29,11 +29,12 @@ All steps are idempotent. Add `--force` to re-process everything.
 
 Each commit is assigned to a project through a cascade (first match wins):
 
-1. **Jira epic** — if the commit references a Jira ticket that belongs to a mapped epic
+1. **Jira epic** — if the commit references a Jira ticket that belongs to a mapped epic, or if the ticket IS itself a mapped epic (self-reference)
 2. **Jira project** — if the ticket's Jira project key has a mapping
-3. **Message prefix** — if the commit message starts with a known prefix (e.g. `INDX:`, `MMU `)
-4. **Repository default** — fallback project for the repository
-5. **Unallocated** — no match found
+3. **Branch matching** — if the commit appears on a branch whose name starts with a mapped prefix (e.g. `indx_dev` matches prefix `indx`). Excluded branches (e.g. `private`, `main`, `RELEASE*`) are ignored. Ambiguous matches (multiple projects) fall through.
+4. **Message prefix** — if the commit message starts with a known prefix (e.g. `INDX:`, `MMU `)
+5. **Repository default** — fallback project for the repository
+6. **Unallocated** — no match found
 
 ## Mapping Configuration
 
@@ -52,6 +53,12 @@ Projects and their mappings are company-specific. Store them in a private config
   "jiraProjectMappings": {
     "BFW": "General Buddy"
   },
+  "branchMappings": {
+    "indx": "INDX",
+    "ix": "AFS",
+    "ixbuddy": "AFS"
+  },
+  "branchExclusions": ["private", "main", "master"],
   "prefixMappings": {
     "INDX": "INDX",
     "INDX_HEAD": "INDX",
