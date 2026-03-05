@@ -48,5 +48,6 @@ refactor.md
 # local cache (fetch-commits output)
 .cache/
 
-# worktrees
+# claude
 .claude/worktree/
+.mcp.json
