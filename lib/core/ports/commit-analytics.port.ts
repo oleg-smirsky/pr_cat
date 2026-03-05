@@ -3,35 +3,16 @@
  * Defines the contract for commit-based analytics such as cost allocation
  */
 
-export interface CostAllocationMember {
-  userId: string | null;
-  name: string;
-  repos: Array<{
-    repositoryId: number;
-    name: string;
-    commits: number;
-  }>;
-  totalCommits: number;
-}
-
-export interface CostAllocationResult {
-  month: string;          // start month
-  monthEnd?: string;      // end month if range
-  team: { id: number; name: string } | null;
-  members: CostAllocationMember[];
-  repoTotals: Array<{
-    repositoryId: number;
-    name: string;
-    commits: number;
-    percentage: number;
-  }>;
-  totalCommits: number;
-}
-
 export interface ProjectAllocation {
   project: { id: number; name: string } | null; // null = unallocated
   commits: number;
   percentage: number;
+}
+
+export interface MonthlyBreakdown {
+  month: string;
+  allocations: ProjectAllocation[];
+  totalCommits: number;
 }
 
 export interface CostAllocationByProjectResult {
@@ -40,6 +21,7 @@ export interface CostAllocationByProjectResult {
   team: { id: number; name: string } | null;
   allocations: ProjectAllocation[];
   totalCommits: number;
+  monthlyBreakdowns?: MonthlyBreakdown[];
 }
 
 export interface CostAllocationParams {
@@ -49,6 +31,5 @@ export interface CostAllocationParams {
 }
 
 export interface ICommitAnalyticsService {
-  getCostAllocation(params: CostAllocationParams): Promise<CostAllocationResult>;
   getCostAllocationByProject(params: CostAllocationParams): Promise<CostAllocationByProjectResult>;
 }
