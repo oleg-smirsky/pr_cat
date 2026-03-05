@@ -5,15 +5,17 @@
  *   1. Epic mapping      — ticket → jira issue epic_key → epicMappings → project_id
  *                           OR ticket key itself in epicMappings (epic self-reference)
  *   2. Jira project      — ticket → jira issue project_key → projectMappings → project_id
- *   3. Message prefix    — commit message prefix (e.g. "INDX:") → prefixMappings → project_id
- *   4. Repo default      — repository_id → repoDefaults → project_id
- *   5. null              — unallocated
+ *   3. Branch matching   — commit branches → branchMappings prefix → project_id
+ *   4. Message prefix    — commit message prefix (e.g. "INDX:") → prefixMappings → project_id
+ *   5. Repo default      — repository_id → repoDefaults → project_id
+ *   6. null              — unallocated
  */
 
 export interface CommitInfo {
   ticketIds: string[];
   repositoryId: number;
   message: string;
+  branchNames: string[];
 }
 
 export interface JiraIssueInfo {
@@ -25,13 +27,15 @@ export interface MappingContext {
   jiraIssues: Map<string, JiraIssueInfo>;
   epicMappings: Map<string, number>;      // epic_key → project_id
   projectMappings: Map<string, number>;   // jira_project_key → project_id
+  branchMappings: Map<string, number>;    // branch prefix → project_id
+  branchExclusions: string[];             // branch names to skip
   prefixMappings: Map<string, number>;    // UPPERCASE prefix → project_id
   repoDefaults: Map<number, number>;      // repository_id → project_id
 }
 
 export interface ResolutionResult {
   projectId: number;
-  level: 'epic' | 'jira_project' | 'message_prefix' | 'repo_default';
+  level: 'epic' | 'jira_project' | 'branch_match' | 'message_prefix' | 'repo_default';
 }
 
 /**
@@ -46,12 +50,69 @@ export function extractMessagePrefix(message: string): string | null {
 }
 
 /**
+ * Check if a branch name should be excluded from matching.
+ * Excluded: exact matches in the exclusion list, plus RELEASE* and REL_* prefixes.
+ */
+function isBranchExcluded(branch: string, exclusions: string[]): boolean {
+  if (exclusions.includes(branch)) return true;
+  if (branch.startsWith('RELEASE') || branch.startsWith('REL_')) return true;
+  return false;
+}
+
+/**
+ * Find the longest matching prefix for a branch name.
+ * Returns the project_id or undefined.
+ */
+function matchBranchPrefix(
+  branch: string,
+  branchMappings: Map<string, number>,
+): number | undefined {
+  let bestLen = 0;
+  let bestProjectId: number | undefined;
+  for (const [prefix, projectId] of branchMappings) {
+    if (branch.startsWith(prefix) && prefix.length > bestLen) {
+      bestLen = prefix.length;
+      bestProjectId = projectId;
+    }
+  }
+  return bestProjectId;
+}
+
+/**
+ * Resolve a project from branch names.
+ * Filters out excluded branches, matches remaining against prefix mappings.
+ * Returns project_id if all matching branches agree, null otherwise.
+ */
+export function resolveBranchProject(
+  branches: string[],
+  branchMappings: Map<string, number>,
+  branchExclusions: string[],
+): number | null {
+  const matchedProjectIds = new Set<number>();
+
+  for (const branch of branches) {
+    if (isBranchExcluded(branch, branchExclusions)) continue;
+    const projectId = matchBranchPrefix(branch, branchMappings);
+    if (projectId !== undefined) {
+      matchedProjectIds.add(projectId);
+    }
+  }
+
+  if (matchedProjectIds.size === 1) {
+    return matchedProjectIds.values().next().value!;
+  }
+
+  return null;
+}
+
+/**
  * Resolve a commit to a project using the cascade:
  *   1. For ALL tickets: check epic mapping
  *   2. For ALL tickets: check jira project mapping
- *   3. Check commit message prefix
- *   4. Check repo default
- *   5. Return null
+ *   3. Check branch matching
+ *   4. Check commit message prefix
+ *   5. Check repo default
+ *   6. Return null
  */
 export function resolveProjectForCommit(
   commit: CommitInfo,
@@ -89,7 +150,17 @@ export function resolveProjectForCommit(
     }
   }
 
-  // Level 3: message prefix
+  // Level 3: branch matching
+  const branchProjectId = resolveBranchProject(
+    commit.branchNames,
+    ctx.branchMappings,
+    ctx.branchExclusions,
+  );
+  if (branchProjectId !== null) {
+    return { projectId: branchProjectId, level: 'branch_match' };
+  }
+
+  // Level 4: message prefix
   const prefix = extractMessagePrefix(commit.message);
   if (prefix) {
     const projectId = ctx.prefixMappings.get(prefix);
@@ -98,12 +169,12 @@ export function resolveProjectForCommit(
     }
   }
 
-  // Level 4: repo default
+  // Level 5: repo default
   const repoProjectId = ctx.repoDefaults.get(commit.repositoryId);
   if (repoProjectId !== undefined) {
     return { projectId: repoProjectId, level: 'repo_default' };
   }
 
-  // Level 5: unallocated
+  // Level 6: unallocated
   return null;
 }
