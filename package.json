@@ -18,7 +18,8 @@
     "generate-mock-data": "node scripts/generate-mock-data.js",
     "fetch-commits": "npx tsx scripts/fetch-commits.ts",
     "ingest-commits": "npx tsx scripts/ingest-commits.ts",
-    "fetch-jira-issues": "npx tsx scripts/fetch-jira-issues.ts"
+    "fetch-jira-issues": "npx tsx scripts/fetch-jira-issues.ts",
+    "ingest-jira-issues": "npx tsx scripts/ingest-jira-issues.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",

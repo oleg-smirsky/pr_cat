@@ -326,6 +326,30 @@ const MIGRATIONS = [
 
       ALTER TABLE projects ADD COLUMN organization_id INTEGER REFERENCES organizations(id);
     `
+  },
+  {
+    version: 10,
+    name: 'add_jira_issues_table',
+    sql: `
+      CREATE TABLE IF NOT EXISTS jira_issues (
+        id INTEGER PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        project_key TEXT NOT NULL,
+        summary TEXT,
+        issue_type TEXT,
+        parent_key TEXT,
+        epic_key TEXT,
+        status TEXT,
+        fix_versions TEXT,
+        labels TEXT,
+        components TEXT,
+        fetched_at TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_jira_issues_project_key ON jira_issues(project_key);
+      CREATE INDEX IF NOT EXISTS idx_jira_issues_epic_key ON jira_issues(epic_key);
+      CREATE INDEX IF NOT EXISTS idx_jira_issues_parent_key ON jira_issues(parent_key);
+    `
   }
 ];
 
