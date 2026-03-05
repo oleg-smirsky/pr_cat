@@ -27,6 +27,8 @@ interface MappingsConfig {
   projects: { name: string; description: string }[];
   epicMappings: Record<string, string>;        // epic_key → project name
   jiraProjectMappings: Record<string, string>; // jira_project_key → project name
+  branchMappings?: Record<string, string>;     // branch prefix → project name
+  branchExclusions?: string[];                 // branch names to skip
   prefixMappings: Record<string, string>;      // prefix → project name
   repoDefaults: Record<string, string>;        // repo full_name → project name
 }
@@ -129,7 +131,29 @@ async function main(): Promise<void> {
       prefixCount++;
     }
 
-    // 5. Repo defaults
+    // 5. Branch mappings
+    let branchCount = 0;
+    for (const [prefix, projectName] of Object.entries(cfg.branchMappings ?? {})) {
+      const projectId = resolve(projectName, `branch prefix ${prefix}`);
+      if (projectId === null) continue;
+      await tx.execute(
+        'INSERT OR REPLACE INTO branch_project_mappings (prefix, project_id) VALUES (?, ?)',
+        [prefix, projectId],
+      );
+      branchCount++;
+    }
+
+    // 6. Branch exclusions
+    let exclCount = 0;
+    for (const branchName of cfg.branchExclusions ?? []) {
+      await tx.execute(
+        'INSERT OR IGNORE INTO branch_exclusions (branch_name) VALUES (?)',
+        [branchName],
+      );
+      exclCount++;
+    }
+
+    // 7. Repo defaults
     let repoCount = 0;
     for (const [repoSlug, projectName] of Object.entries(cfg.repoDefaults)) {
       const projectId = resolve(projectName, `repo ${repoSlug}`);
@@ -154,6 +178,8 @@ async function main(): Promise<void> {
     console.log(`  Epic mappings:    ${epicCount}`);
     console.log(`  Jira proj maps:   ${jpCount}`);
     console.log(`  Prefix mappings:  ${prefixCount}`);
+    console.log(`  Branch mappings: ${branchCount}`);
+    console.log(`  Branch excl.:    ${exclCount}`);
     console.log(`  Repo defaults:    ${repoCount}`);
   });
 
