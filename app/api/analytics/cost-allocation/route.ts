@@ -43,18 +43,13 @@ const handler = async (
     );
   }
 
-  const groupBy = searchParams.get('groupBy');
-  const params = { month, monthEnd: monthEnd ?? undefined, teamId };
-
   try {
     const service = await ServiceLocator.getCommitAnalyticsService();
-
-    if (groupBy === 'project') {
-      const result = await service.getCostAllocationByProject(params);
-      return NextResponse.json(result);
-    }
-
-    const result = await service.getCostAllocation(params);
+    const result = await service.getCostAllocationByProject({
+      month,
+      monthEnd: monthEnd ?? undefined,
+      teamId,
+    });
     return NextResponse.json(result);
   } catch (error) {
     console.error('Cost allocation error:', error);

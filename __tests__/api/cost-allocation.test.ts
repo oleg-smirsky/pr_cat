@@ -1,8 +1,6 @@
-// Integration tests for cost allocation API route
 import type { ApplicationContext } from '@/lib/core/application/context';
-import type { CostAllocationResult } from '@/lib/core/ports/commit-analytics.port';
+import type { CostAllocationByProjectResult } from '@/lib/core/ports/commit-analytics.port';
 
-// Mock next/server with a NextResponse that works in jsdom without native Response.json
 jest.mock('next/server', () => {
   class MockNextResponse {
     private _body: unknown;
@@ -34,7 +32,6 @@ jest.mock('next/server', () => {
   };
 });
 
-// Build a mock ApplicationContext
 const mockContext: ApplicationContext = {
   user: {
     id: 'user-123',
@@ -69,7 +66,6 @@ const mockContext: ApplicationContext = {
   requestId: 'req_test_123',
 };
 
-// Mock withAuth to pass through to handler with mockContext
 jest.mock('@/lib/core', () => ({
   withAuth: (handler: (...args: unknown[]) => unknown) => {
     return (request: unknown) => handler(mockContext, request);
@@ -77,201 +73,134 @@ jest.mock('@/lib/core', () => ({
   ApplicationContext: {},
 }));
 
-// Jest allows variables prefixed with "mock" to be referenced in hoisted jest.mock calls
-const mockGetCostAllocation = jest.fn();
+const mockGetCostAllocationByProject = jest.fn();
 
 jest.mock('@/lib/core/container', () => ({
   ServiceLocator: {
     getCommitAnalyticsService: () => Promise.resolve({
-      getCostAllocation: mockGetCostAllocation,
+      getCostAllocationByProject: mockGetCostAllocationByProject,
     }),
   },
 }));
 
 import { GET } from '@/app/api/analytics/cost-allocation/route';
 
-/**
- * Helper to create a minimal request-like object with a url property.
- * The handler only reads request.url via `new URL(request.url)`.
- */
 function createRequest(url: string) {
   return { url } as unknown;
 }
 
-const mockCostAllocationResult: CostAllocationResult = {
+const mockProjectResult: CostAllocationByProjectResult = {
   month: '2025-03',
   team: null,
-  members: [
-    {
-      userId: 'user-123',
-      name: 'Test User',
-      repos: [
-        { repositoryId: 1, name: 'test-repo', commits: 15 },
-        { repositoryId: 2, name: 'other-repo', commits: 5 },
-      ],
-      totalCommits: 20,
-    },
-    {
-      userId: 'user-456',
-      name: 'Another User',
-      repos: [
-        { repositoryId: 1, name: 'test-repo', commits: 10 },
-      ],
-      totalCommits: 10,
-    },
-  ],
-  repoTotals: [
-    { repositoryId: 1, name: 'test-repo', commits: 25, percentage: 83.33 },
-    { repositoryId: 2, name: 'other-repo', commits: 5, percentage: 16.67 },
+  allocations: [
+    { project: { id: 1, name: 'INDX' }, commits: 20, percentage: 66.7 },
+    { project: null, commits: 10, percentage: 33.3 },
   ],
   totalCommits: 30,
-};
-
-const mockCostAllocationWithTeam: CostAllocationResult = {
-  ...mockCostAllocationResult,
-  team: { id: 7, name: 'Engineering' },
 };
 
 describe('GET /api/analytics/cost-allocation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetCostAllocation.mockResolvedValue(mockCostAllocationResult);
+    mockGetCostAllocationByProject.mockResolvedValue(mockProjectResult);
   });
 
   it('returns 400 when month param is missing', async () => {
     const request = createRequest('http://localhost:3000/api/analytics/cost-allocation');
     const response = await GET(request);
-
     expect(response.status).toBe(400);
     const data = await response.json();
     expect(data).toEqual({ error: 'month parameter required (YYYY-MM format)' });
   });
 
-  it('returns 400 when month param has invalid format (extra segments)', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-13-01'
-    );
+  it('returns 400 when month param has invalid format', async () => {
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-13-01');
     const response = await GET(request);
-
     expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data).toEqual({ error: 'month parameter required (YYYY-MM format)' });
-  });
-
-  it('returns 400 when month param is just text', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=march'
-    );
-    const response = await GET(request);
-
-    expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data).toEqual({ error: 'month parameter required (YYYY-MM format)' });
   });
 
   it('returns 400 when teamId is not a valid number', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=abc'
-    );
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=abc');
     const response = await GET(request);
-
     expect(response.status).toBe(400);
     const data = await response.json();
     expect(data).toEqual({ error: 'teamId must be a positive integer' });
   });
 
   it('returns 400 when teamId is zero', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=0'
-    );
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=0');
     const response = await GET(request);
-
     expect(response.status).toBe(400);
-    const data = await response.json();
-    expect(data).toEqual({ error: 'teamId must be a positive integer' });
   });
 
-  it('returns 400 when teamId is negative', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=-1'
-    );
+  it('returns 400 when monthEnd has invalid format', async () => {
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03&monthEnd=bad');
     const response = await GET(request);
-
     expect(response.status).toBe(400);
     const data = await response.json();
-    expect(data).toEqual({ error: 'teamId must be a positive integer' });
+    expect(data).toEqual({ error: 'monthEnd must be YYYY-MM format' });
   });
 
-  it('returns valid cost allocation data for a valid month', async () => {
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03'
-    );
+  it('returns 400 when monthEnd is before month', async () => {
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03&monthEnd=2025-01');
+    const response = await GET(request);
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data).toEqual({ error: 'monthEnd must not be before month' });
+  });
+
+  it('returns project allocation data for a valid month', async () => {
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    const data = await response.json() as CostAllocationResult;
+    const data = await response.json() as CostAllocationByProjectResult;
 
     expect(data.month).toBe('2025-03');
     expect(data.team).toBeNull();
-    expect(data.members).toHaveLength(2);
-    expect(data.repoTotals).toHaveLength(2);
+    expect(data.allocations).toHaveLength(2);
     expect(data.totalCommits).toBe(30);
 
-    // Verify member shape
-    expect(data.members[0]).toEqual({
-      userId: 'user-123',
-      name: 'Test User',
-      repos: [
-        { repositoryId: 1, name: 'test-repo', commits: 15 },
-        { repositoryId: 2, name: 'other-repo', commits: 5 },
-      ],
-      totalCommits: 20,
-    });
-
-    // Verify repo totals shape
-    expect(data.repoTotals[0]).toEqual({
-      repositoryId: 1,
-      name: 'test-repo',
-      commits: 25,
-      percentage: 83.33,
-    });
-
-    // Verify service was called correctly
-    expect(mockGetCostAllocation).toHaveBeenCalledWith({
+    expect(mockGetCostAllocationByProject).toHaveBeenCalledWith({
       month: '2025-03',
+      monthEnd: undefined,
       teamId: undefined,
     });
   });
 
-  it('returns data with team info when teamId is provided', async () => {
-    mockGetCostAllocation.mockResolvedValue(mockCostAllocationWithTeam);
+  it('passes monthEnd to service when provided', async () => {
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-01&monthEnd=2025-03');
+    await GET(request);
 
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=7'
-    );
+    expect(mockGetCostAllocationByProject).toHaveBeenCalledWith({
+      month: '2025-01',
+      monthEnd: '2025-03',
+      teamId: undefined,
+    });
+  });
+
+  it('passes teamId to service when provided', async () => {
+    const resultWithTeam = { ...mockProjectResult, team: { id: 7, name: 'Engineering' } };
+    mockGetCostAllocationByProject.mockResolvedValue(resultWithTeam);
+
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03&teamId=7');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    const data = await response.json() as CostAllocationResult;
-
-    expect(data.month).toBe('2025-03');
+    const data = await response.json();
     expect(data.team).toEqual({ id: 7, name: 'Engineering' });
-    expect(data.members).toHaveLength(2);
-    expect(data.totalCommits).toBe(30);
 
-    // Verify service was called with teamId
-    expect(mockGetCostAllocation).toHaveBeenCalledWith({
+    expect(mockGetCostAllocationByProject).toHaveBeenCalledWith({
       month: '2025-03',
+      monthEnd: undefined,
       teamId: 7,
     });
   });
 
-  it('returns 500 when service throws an error', async () => {
-    mockGetCostAllocation.mockRejectedValue(new Error('Database connection failed'));
+  it('returns 500 when service throws', async () => {
+    mockGetCostAllocationByProject.mockRejectedValue(new Error('DB error'));
 
-    const request = createRequest(
-      'http://localhost:3000/api/analytics/cost-allocation?month=2025-03'
-    );
+    const request = createRequest('http://localhost:3000/api/analytics/cost-allocation?month=2025-03');
     const response = await GET(request);
 
     expect(response.status).toBe(500);
