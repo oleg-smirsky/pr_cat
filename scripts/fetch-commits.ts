@@ -37,6 +37,28 @@ async function handleRateLimit(headers: Record<string, string | undefined>): Pro
   }
 }
 
+const CONCURRENCY = 10;
+
+/** Run async tasks with a concurrency limit */
+async function mapConcurrent<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
+}
+
 async function main(): Promise<void> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
@@ -58,8 +80,8 @@ async function main(): Promise<void> {
     const cacheDir = getRepoCacheDir(owner, repo);
     console.log(`\n[${owner}/${repo}] Fetching branches...`);
 
-    // Fetch branches
-    const { data: branches } = await octokit.repos.listBranches({
+    // Fetch all branches (paginated)
+    const branches = await octokit.paginate(octokit.repos.listBranches, {
       owner,
       repo,
       per_page: 100,
@@ -67,7 +89,24 @@ async function main(): Promise<void> {
     saveCacheFile(path.join(cacheDir, 'branches.json'), branches);
     console.log(`[${owner}/${repo}] Found ${branches.length} branches.`);
 
-    for (const branch of branches) {
+    // Pre-filter: concurrently check which branches have recent commits
+    console.log(`[${owner}/${repo}] Checking branches for recent activity (concurrency=${CONCURRENCY})...`);
+    const branchHasCommits = await mapConcurrent(branches, CONCURRENCY, async (branch) => {
+      const { data: commits } = await octokit.repos.listCommits({
+        owner,
+        repo,
+        sha: branch.name,
+        since: sinceISO,
+        per_page: 1,
+      });
+      return commits.length > 0;
+    });
+
+    const activeBranches = branches.filter((_, i) => branchHasCommits[i]);
+    console.log(`[${owner}/${repo}] ${activeBranches.length}/${branches.length} branches have recent commits.`);
+
+    // Process only active branches
+    for (const branch of activeBranches) {
       const branchName = branch.name;
       const sanitized = sanitizeBranchName(branchName);
       console.log(`\n[${owner}/${repo}] Branch: ${branchName}`);
