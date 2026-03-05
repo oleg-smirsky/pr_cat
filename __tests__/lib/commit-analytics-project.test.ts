@@ -8,6 +8,7 @@ describe('getCostAllocationByProject', () => {
     expect(result.month).toBe('2026-02');
     expect(result.allocations.length).toBeGreaterThan(0);
     expect(result.totalCommits).toBeGreaterThan(0);
+    expect(result.monthlyBreakdowns).toBeUndefined();
   });
 
   it('includes unallocated bucket (project = null)', async () => {
@@ -25,5 +26,16 @@ describe('getCostAllocationByProject', () => {
   it('accepts optional teamId', async () => {
     const result = await service.getCostAllocationByProject({ month: '2026-02', teamId: 1 });
     expect(result.team).toEqual({ id: 1, name: 'Demo Team' });
+  });
+
+  it('returns monthly breakdowns for multi-month range', async () => {
+    const result = await service.getCostAllocationByProject({
+      month: '2026-01',
+      monthEnd: '2026-03',
+    });
+    expect(result.monthlyBreakdowns).toHaveLength(3);
+    expect(result.monthlyBreakdowns![0].month).toBe('2026-01');
+    expect(result.monthlyBreakdowns![2].month).toBe('2026-03');
+    expect(result.totalCommits).toBeGreaterThan(0);
   });
 });
