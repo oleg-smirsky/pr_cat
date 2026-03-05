@@ -12,6 +12,9 @@
  * Requires TURSO_URL (and optionally TURSO_TOKEN) environment variables.
  */
 
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parseArgs, parseRepoSlug, getRepoCacheDir } from './lib/cache-utils';
@@ -21,6 +24,7 @@ import {
   type CachedCommitData,
 } from './lib/commit-utils';
 import { query, execute, transaction } from '@/lib/db';
+import { runMigrations } from '@/lib/migrate';
 
 const BATCH_SIZE = 100;
 
@@ -32,11 +36,13 @@ interface IngestStats {
 
 type TxClient = { query: typeof query; execute: typeof execute };
 
-/** Resolve author_id by GitHub ID or email fallback */
+/** Resolve author_id by GitHub ID or email, creating a user if needed */
 async function resolveAuthorId(
   tx: TxClient,
   githubAuthorId: string | null,
+  githubAuthorLogin: string | null,
   authorEmail: string,
+  authorName: string,
 ): Promise<string | null> {
   // Try GitHub numeric ID first (stored as string in users.id)
   if (githubAuthorId) {
@@ -56,6 +62,15 @@ async function resolveAuthorId(
   );
   if (rows.length > 0) {
     return rows[0].id;
+  }
+
+  // No match — create a new user from commit data
+  if (githubAuthorId) {
+    await tx.execute(
+      'INSERT OR IGNORE INTO users (id, name, email) VALUES (?, ?, ?)',
+      [githubAuthorId, githubAuthorLogin ?? authorName, authorEmail],
+    );
+    return githubAuthorId;
   }
 
   return null;
@@ -109,7 +124,7 @@ async function ingestRepoCommits(
     await transaction(async (tx) => {
       for (const raw of batch) {
         const parsed = parseCommitForIngestion(raw);
-        const authorId = await resolveAuthorId(tx, parsed.githubAuthorId, parsed.authorEmail);
+        const authorId = await resolveAuthorId(tx, parsed.githubAuthorId, parsed.githubAuthorLogin, parsed.authorEmail, parsed.authorName);
 
         if (!authorId) {
           stats.unresolvedAuthors++;
@@ -136,6 +151,12 @@ async function ingestRepoCommits(
 
         if (result.rowsAffected > 0) {
           stats.inserted++;
+        } else if (authorId) {
+          // Backfill author_id on existing commits that were missing it
+          await tx.execute(
+            'UPDATE commits SET author_id = ? WHERE sha = ? AND repository_id = ? AND author_id IS NULL',
+            [authorId, parsed.sha, repositoryId],
+          );
         } else {
           stats.skipped++;
         }
@@ -235,6 +256,8 @@ async function main(): Promise<void> {
     console.error('Error: No repos specified. Use --repos owner/repo1,owner/repo2');
     process.exit(1);
   }
+
+  await runMigrations();
 
   for (const slug of repos) {
     const { owner, repo } = parseRepoSlug(slug);
