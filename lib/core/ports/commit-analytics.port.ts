@@ -27,9 +27,27 @@ export interface CostAllocationResult {
   totalCommits: number;
 }
 
+export interface ProjectAllocation {
+  project: { id: number; name: string } | null; // null = unallocated
+  commits: number;
+  percentage: number;
+}
+
+export interface CostAllocationByProjectResult {
+  month: string;
+  team: { id: number; name: string } | null;
+  allocations: ProjectAllocation[];
+  totalCommits: number;
+}
+
 export interface ICommitAnalyticsService {
   getCostAllocation(params: {
     month: string;       // YYYY-MM
     teamId?: number;
   }): Promise<CostAllocationResult>;
+
+  getCostAllocationByProject(params: {
+    month: string;
+    teamId?: number;
+  }): Promise<CostAllocationByProjectResult>;
 }

@@ -7,8 +7,15 @@ import {
   ICommitAnalyticsService,
   CostAllocationResult,
   CostAllocationMember,
+  CostAllocationByProjectResult,
 } from '../../../core/ports/commit-analytics.port'
 import { query } from '@/lib/db'
+
+interface ProjectAggregationRow {
+  project_id: number | null;
+  project_name: string | null;
+  commit_count: number;
+}
 
 interface CommitAggregationRow {
   author_id: string | null;
@@ -46,6 +53,59 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
     }
 
     return this.buildResult(month, team, rows)
+  }
+
+  async getCostAllocationByProject(params: {
+    month: string;
+    teamId?: number;
+  }): Promise<CostAllocationByProjectResult> {
+    const { month, teamId } = params
+    const [timeMin, timeMax] = this.getMonthRange(month)
+
+    let team: { id: number; name: string } | null = null
+    if (teamId) {
+      const teamRows = await query<TeamRow>(
+        'SELECT id, name FROM teams WHERE id = ?',
+        [teamId]
+      )
+      team = teamRows.length > 0 ? { id: teamRows[0].id, name: teamRows[0].name } : null
+    }
+
+    const rows = teamId
+      ? await query<ProjectAggregationRow>(
+          `SELECT p.id AS project_id, p.name AS project_name, COUNT(*) AS commit_count
+           FROM commits c
+           LEFT JOIN projects p ON c.project_id = p.id
+           JOIN team_members tm ON tm.user_id = c.author_id
+           WHERE c.committed_at >= ? AND c.committed_at < ?
+             AND tm.team_id = ?
+           GROUP BY c.project_id
+           ORDER BY commit_count DESC`,
+          [timeMin, timeMax, teamId]
+        )
+      : await query<ProjectAggregationRow>(
+          `SELECT p.id AS project_id, p.name AS project_name, COUNT(*) AS commit_count
+           FROM commits c
+           LEFT JOIN projects p ON c.project_id = p.id
+           WHERE c.committed_at >= ? AND c.committed_at < ?
+           GROUP BY c.project_id
+           ORDER BY commit_count DESC`,
+          [timeMin, timeMax]
+        )
+
+    const totalCommits = rows.reduce((sum, r) => sum + r.commit_count, 0)
+
+    const allocations = rows.map(row => ({
+      project: row.project_id != null
+        ? { id: row.project_id, name: row.project_name! }
+        : null,
+      commits: row.commit_count,
+      percentage: totalCommits > 0
+        ? Math.round((row.commit_count / totalCommits) * 1000) / 10
+        : 0,
+    }))
+
+    return { month, team, allocations, totalCommits }
   }
 
   private async queryAll(timeMin: string, timeMax: string): Promise<CommitAggregationRow[]> {

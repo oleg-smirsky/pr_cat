@@ -3,7 +3,7 @@
  * Implements ICommitAnalyticsService using hardcoded mock data
  */
 
-import { ICommitAnalyticsService, CostAllocationResult } from '../../../core/ports/commit-analytics.port';
+import { ICommitAnalyticsService, CostAllocationResult, CostAllocationByProjectResult } from '../../../core/ports/commit-analytics.port';
 
 export class DemoCommitAnalyticsService implements ICommitAnalyticsService {
   async getCostAllocation(params: { month: string; teamId?: number }): Promise<CostAllocationResult> {
@@ -39,6 +39,22 @@ export class DemoCommitAnalyticsService implements ICommitAnalyticsService {
         { repositoryId: 3, name: 'other-repo', commits: 40, percentage: 10 },
       ],
       totalCommits,
+    };
+  }
+
+  async getCostAllocationByProject(params: {
+    month: string;
+    teamId?: number;
+  }): Promise<CostAllocationByProjectResult> {
+    return {
+      month: params.month,
+      team: params.teamId ? { id: params.teamId, name: 'Demo Team' } : null,
+      allocations: [
+        { project: { id: 1, name: 'INDX' }, commits: 150, percentage: 37.5 },
+        { project: { id: 2, name: 'Core One L' }, commits: 120, percentage: 30.0 },
+        { project: null, commits: 130, percentage: 32.5 },
+      ],
+      totalCommits: 400,
     };
   }
 }

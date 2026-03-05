@@ -28,8 +28,16 @@ const handler = async (
     );
   }
 
+  const groupBy = searchParams.get('groupBy');
+
   try {
     const service = await ServiceLocator.getCommitAnalyticsService();
+
+    if (groupBy === 'project') {
+      const result = await service.getCostAllocationByProject({ month, teamId });
+      return NextResponse.json(result);
+    }
+
     const result = await service.getCostAllocation({ month, teamId });
     return NextResponse.json(result);
   } catch (error) {
