@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSession } from "next-auth/react"
-import { IconDownload } from "@tabler/icons-react"
+import { IconDownload, IconDeviceFloppy } from "@tabler/icons-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group"
+
+// --- Types ---
 
 interface CostAllocationResult {
   month: string
@@ -44,10 +50,34 @@ interface CostAllocationResult {
   totalCommits: number
 }
 
+interface ProjectAllocationResult {
+  month: string
+  team: { id: number; name: string } | null
+  allocations: Array<{
+    project: { id: number; name: string } | null
+    commits: number
+    percentage: number
+  }>
+  totalCommits: number
+}
+
+interface TeamCostData {
+  id?: number
+  teamId: number
+  month: string
+  totalCost: number
+  headcount: number
+  currency: string
+}
+
 interface Team {
   id: number
   name: string
 }
+
+type GroupBy = "repository" | "project"
+
+// --- Helpers ---
 
 function getCurrentMonth(): string {
   const now = new Date()
@@ -71,7 +101,7 @@ function getCommitCount(
   return repo?.commits ?? 0
 }
 
-function buildCsvContent(
+function buildRepoCsvContent(
   data: CostAllocationResult,
   teamCost: number | undefined
 ): string {
@@ -103,13 +133,54 @@ function buildCsvContent(
     const costRow = [
       "Cost",
       ...data.repoTotals.map(
-        (r) => `$${((r.percentage / 100) * teamCost).toFixed(2)}`
+        (r) => `${((r.percentage / 100) * teamCost).toFixed(2)}`
       ),
-      `$${teamCost.toFixed(2)}`,
+      `${teamCost.toFixed(2)}`,
     ]
     rows.push(costRow)
   }
 
+  return formatCsv(headers, rows)
+}
+
+function buildProjectCsvContent(
+  data: ProjectAllocationResult,
+  teamCost: number | undefined
+): string {
+  const hasCost = teamCost !== undefined && teamCost > 0
+  const headers = [
+    "Project",
+    "Commits",
+    "Percentage",
+    ...(hasCost ? ["Cost"] : []),
+  ]
+  const rows: string[][] = []
+
+  for (const alloc of data.allocations) {
+    const row = [
+      alloc.project?.name ?? "Unallocated",
+      String(alloc.commits),
+      `${alloc.percentage.toFixed(1)}%`,
+      ...(hasCost
+        ? [`${((alloc.percentage / 100) * teamCost).toFixed(2)}`]
+        : []),
+    ]
+    rows.push(row)
+  }
+
+  // Total row
+  const totalRow = [
+    "Total",
+    String(data.totalCommits),
+    "100.0%",
+    ...(hasCost ? [`${teamCost.toFixed(2)}`] : []),
+  ]
+  rows.push(totalRow)
+
+  return formatCsv(headers, rows)
+}
+
+function formatCsv(headers: string[], rows: string[][]): string {
   const escape = (val: string) => {
     if (val.includes(",") || val.includes('"') || val.includes("\n")) {
       return `"${val.replace(/"/g, '""')}"`
@@ -134,6 +205,8 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
+// --- Components ---
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-4">
@@ -147,14 +220,192 @@ function LoadingSkeleton() {
   )
 }
 
+function RepositoryTable({
+  data,
+  teamCost,
+}: {
+  data: CostAllocationResult
+  teamCost: number | undefined
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Developer</TableHead>
+            {getRepoColumns(data).map((repo) => (
+              <TableHead key={repo.repositoryId} className="text-right">
+                {repo.name}
+              </TableHead>
+            ))}
+            <TableHead className="text-right">Total</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.members.map((member) => (
+            <TableRow key={member.userId ?? member.name}>
+              <TableCell className="font-medium">
+                {member.name}
+              </TableCell>
+              {getRepoColumns(data).map((repo) => (
+                <TableCell
+                  key={repo.repositoryId}
+                  className="text-right"
+                >
+                  {getCommitCount(member, repo.repositoryId)}
+                </TableCell>
+              ))}
+              <TableCell className="text-right font-medium">
+                {member.totalCommits}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <TableFooter>
+          {/* Totals row */}
+          <TableRow>
+            <TableCell className="font-medium">Total</TableCell>
+            {data.repoTotals.map((repo) => (
+              <TableCell
+                key={repo.repositoryId}
+                className="text-right"
+              >
+                {repo.commits}{" "}
+                <span className="text-muted-foreground text-xs">
+                  ({repo.percentage.toFixed(1)}%)
+                </span>
+              </TableCell>
+            ))}
+            <TableCell className="text-right font-medium">
+              {data.totalCommits}
+            </TableCell>
+          </TableRow>
+
+          {/* Cost allocation row */}
+          {teamCost !== undefined && teamCost > 0 && (
+            <TableRow>
+              <TableCell className="font-medium">Cost</TableCell>
+              {data.repoTotals.map((repo) => (
+                <TableCell
+                  key={repo.repositoryId}
+                  className="text-right"
+                >
+                  {((repo.percentage / 100) * teamCost).toFixed(2)}
+                </TableCell>
+              ))}
+              <TableCell className="text-right font-medium">
+                {teamCost.toFixed(2)}
+              </TableCell>
+            </TableRow>
+          )}
+        </TableFooter>
+      </Table>
+    </div>
+  )
+}
+
+function ProjectTable({
+  data,
+  teamCost,
+}: {
+  data: ProjectAllocationResult
+  teamCost: number | undefined
+}) {
+  const hasCost = teamCost !== undefined && teamCost > 0
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Project</TableHead>
+            <TableHead className="text-right">Commits</TableHead>
+            <TableHead className="text-right">Percentage</TableHead>
+            {hasCost && (
+              <TableHead className="text-right">Cost</TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.allocations.map((alloc) => {
+            const isUnallocated = alloc.project === null
+            return (
+              <TableRow key={alloc.project?.id ?? "unallocated"}>
+                <TableCell
+                  className={
+                    isUnallocated
+                      ? "text-muted-foreground italic"
+                      : "font-medium"
+                  }
+                >
+                  {alloc.project?.name ?? "Unallocated"}
+                </TableCell>
+                <TableCell className="text-right">
+                  {alloc.commits}
+                </TableCell>
+                <TableCell className="text-right">
+                  {alloc.percentage.toFixed(1)}%
+                </TableCell>
+                {hasCost && (
+                  <TableCell className="text-right">
+                    {((alloc.percentage / 100) * teamCost).toFixed(2)}
+                  </TableCell>
+                )}
+              </TableRow>
+            )
+          })}
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell className="font-medium">Total</TableCell>
+            <TableCell className="text-right font-medium">
+              {data.totalCommits}
+            </TableCell>
+            <TableCell className="text-right font-medium">
+              100.0%
+            </TableCell>
+            {hasCost && (
+              <TableCell className="text-right font-medium">
+                {teamCost.toFixed(2)}
+              </TableCell>
+            )}
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </div>
+  )
+}
+
+// --- Main Component ---
+
 export function CostAllocationTable() {
   const { data: session } = useSession()
   const [month, setMonth] = React.useState(getCurrentMonth)
   const [teamId, setTeamId] = React.useState<number | undefined>(undefined)
-  const [teamCost, setTeamCost] = React.useState<number | undefined>(undefined)
-  const [data, setData] = React.useState<CostAllocationResult | null>(null)
+  const [groupBy, setGroupBy] = React.useState<GroupBy>("repository")
+
+  // Team cost form state (persisted to DB)
+  const [totalCost, setTotalCost] = React.useState<number | undefined>(
+    undefined
+  )
+  const [headcount, setHeadcount] = React.useState<number | undefined>(
+    undefined
+  )
+  const [currency, setCurrency] = React.useState("CZK")
+  const [costSaving, setCostSaving] = React.useState(false)
+  const [costDirty, setCostDirty] = React.useState(false)
+
+  const [repoData, setRepoData] = React.useState<CostAllocationResult | null>(
+    null
+  )
+  const [projectData, setProjectData] =
+    React.useState<ProjectAllocationResult | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [teams, setTeams] = React.useState<Team[]>([])
+
+  // Computed team cost for table rendering
+  const effectiveTeamCost =
+    totalCost !== undefined && totalCost > 0 ? totalCost : undefined
 
   // Load teams from session organizations
   React.useEffect(() => {
@@ -164,9 +415,7 @@ export function CostAllocationTable() {
       if (!session?.organizations) return
       for (const org of session.organizations) {
         try {
-          const res = await fetch(
-            `/api/organizations/${org.id}/teams`
-          )
+          const res = await fetch(`/api/organizations/${org.id}/teams`)
           if (res.ok) {
             const data = await res.json()
             for (const team of data) {
@@ -188,6 +437,45 @@ export function CostAllocationTable() {
     fetchTeams()
   }, [session?.organizations])
 
+  // Load saved team cost when month or teamId changes
+  React.useEffect(() => {
+    if (teamId === undefined) {
+      setTotalCost(undefined)
+      setHeadcount(undefined)
+      setCurrency("CZK")
+      setCostDirty(false)
+      return
+    }
+
+    let cancelled = false
+    async function loadCost() {
+      try {
+        const res = await fetch(
+          `/api/teams/${teamId}/costs?month=${month}`
+        )
+        if (!cancelled && res.ok) {
+          const data: TeamCostData | null = await res.json()
+          if (data) {
+            setTotalCost(data.totalCost)
+            setHeadcount(data.headcount)
+            setCurrency(data.currency)
+          } else {
+            setTotalCost(undefined)
+            setHeadcount(undefined)
+            setCurrency("CZK")
+          }
+          setCostDirty(false)
+        }
+      } catch {
+        // Keep current values on error
+      }
+    }
+    loadCost()
+    return () => {
+      cancelled = true
+    }
+  }, [month, teamId])
+
   // Fetch cost allocation data
   React.useEffect(() => {
     let cancelled = false
@@ -198,20 +486,32 @@ export function CostAllocationTable() {
         if (teamId !== undefined) {
           params.set("teamId", String(teamId))
         }
+        if (groupBy === "project") {
+          params.set("groupBy", "project")
+        }
         const res = await fetch(
           `/api/analytics/cost-allocation?${params.toString()}`
         )
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }
-        const result: CostAllocationResult = await res.json()
         if (!cancelled) {
-          setData(result)
+          if (groupBy === "project") {
+            const result: ProjectAllocationResult = await res.json()
+            setProjectData(result)
+          } else {
+            const result: CostAllocationResult = await res.json()
+            setRepoData(result)
+          }
         }
       } catch (error) {
         console.error("Failed to fetch cost allocation data:", error)
         if (!cancelled) {
-          setData(null)
+          if (groupBy === "project") {
+            setProjectData(null)
+          } else {
+            setRepoData(null)
+          }
         }
       } finally {
         if (!cancelled) {
@@ -223,14 +523,62 @@ export function CostAllocationTable() {
     return () => {
       cancelled = true
     }
-  }, [month, teamId])
+  }, [month, teamId, groupBy])
+
+  const handleSaveCost = async () => {
+    if (
+      teamId === undefined ||
+      totalCost === undefined ||
+      headcount === undefined
+    )
+      return
+
+    setCostSaving(true)
+    try {
+      const res = await fetch(`/api/teams/${teamId}/costs`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month,
+          totalCost,
+          headcount,
+          currency,
+        }),
+      })
+      if (res.ok) {
+        setCostDirty(false)
+      }
+    } catch (error) {
+      console.error("Failed to save team cost:", error)
+    } finally {
+      setCostSaving(false)
+    }
+  }
 
   const handleExportCsv = () => {
-    if (!data) return
-    const csv = buildCsvContent(data, teamCost)
-    const filename = `cost-allocation-${data.month}${data.team ? `-${data.team.name}` : ""}.csv`
+    let csv: string
+    let filename: string
+    const teamName =
+      groupBy === "project"
+        ? projectData?.team?.name
+        : repoData?.team?.name
+
+    if (groupBy === "project" && projectData) {
+      csv = buildProjectCsvContent(projectData, effectiveTeamCost)
+      filename = `cost-allocation-project-${projectData.month}${teamName ? `-${teamName}` : ""}.csv`
+    } else if (repoData) {
+      csv = buildRepoCsvContent(repoData, effectiveTeamCost)
+      filename = `cost-allocation-${repoData.month}${teamName ? `-${teamName}` : ""}.csv`
+    } else {
+      return
+    }
     downloadCsv(filename, csv)
   }
+
+  const hasData =
+    groupBy === "project"
+      ? projectData && projectData.allocations.length > 0
+      : repoData && repoData.members.length > 0
 
   return (
     <Card>
@@ -274,115 +622,117 @@ export function CostAllocationTable() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cost-amount">Monthly Team Cost</Label>
-            <Input
-              id="cost-amount"
-              type="number"
-              min={0}
-              step={0.01}
-              placeholder="Monthly team cost..."
-              value={teamCost ?? ""}
-              onChange={(e) => {
-                const val = e.target.value
-                setTeamCost(val === "" ? undefined : parseFloat(val))
+            <Label>View</Label>
+            <ToggleGroup
+              type="single"
+              value={groupBy}
+              onValueChange={(val) => {
+                if (val) setGroupBy(val as GroupBy)
               }}
-              className="w-48"
-            />
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="repository">Repository</ToggleGroupItem>
+              <ToggleGroupItem value="project">Project</ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCsv}
-            disabled={!data || data.members.length === 0}
+            disabled={!hasData}
           >
             <IconDownload className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
         </div>
 
+        {/* Team cost form — only shown when a team is selected */}
+        {teamId !== undefined && (
+          <div className="flex flex-wrap items-end gap-4 rounded-md border p-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="cost-total">Total Cost</Label>
+              <Input
+                id="cost-total"
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="Monthly total..."
+                value={totalCost ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setTotalCost(val === "" ? undefined : parseFloat(val))
+                  setCostDirty(true)
+                }}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cost-headcount">Headcount</Label>
+              <Input
+                id="cost-headcount"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="Team size..."
+                value={headcount ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setHeadcount(val === "" ? undefined : parseInt(val, 10))
+                  setCostDirty(true)
+                }}
+                className="w-28"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cost-currency">Currency</Label>
+              <Select
+                value={currency}
+                onValueChange={(val) => {
+                  setCurrency(val)
+                  setCostDirty(true)
+                }}
+              >
+                <SelectTrigger id="cost-currency" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CZK">CZK</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSaveCost}
+              disabled={
+                !costDirty ||
+                costSaving ||
+                totalCost === undefined ||
+                headcount === undefined
+              }
+            >
+              <IconDeviceFloppy className="mr-2 h-4 w-4" />
+              {costSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
         {loading ? (
           <LoadingSkeleton />
-        ) : !data || data.members.length === 0 ? (
+        ) : !hasData ? (
           <div className="text-muted-foreground py-8 text-center text-sm">
             No commit data found for {month}.
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Developer</TableHead>
-                  {getRepoColumns(data).map((repo) => (
-                    <TableHead key={repo.repositoryId} className="text-right">
-                      {repo.name}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.members.map((member) => (
-                  <TableRow key={member.userId ?? member.name}>
-                    <TableCell className="font-medium">
-                      {member.name}
-                    </TableCell>
-                    {getRepoColumns(data).map((repo) => (
-                      <TableCell
-                        key={repo.repositoryId}
-                        className="text-right"
-                      >
-                        {getCommitCount(member, repo.repositoryId)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-medium">
-                      {member.totalCommits}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                {/* Totals row */}
-                <TableRow>
-                  <TableCell className="font-medium">Total</TableCell>
-                  {data.repoTotals.map((repo) => (
-                    <TableCell
-                      key={repo.repositoryId}
-                      className="text-right"
-                    >
-                      {repo.commits}{" "}
-                      <span className="text-muted-foreground text-xs">
-                        ({repo.percentage.toFixed(1)}%)
-                      </span>
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right font-medium">
-                    {data.totalCommits}
-                  </TableCell>
-                </TableRow>
-
-                {/* Cost allocation row */}
-                {teamCost !== undefined && teamCost > 0 && (
-                  <TableRow>
-                    <TableCell className="font-medium">Cost</TableCell>
-                    {data.repoTotals.map((repo) => (
-                      <TableCell
-                        key={repo.repositoryId}
-                        className="text-right"
-                      >
-                        ${((repo.percentage / 100) * teamCost).toFixed(2)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-medium">
-                      ${teamCost.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableFooter>
-            </Table>
-          </div>
-        )}
+        ) : groupBy === "project" && projectData ? (
+          <ProjectTable data={projectData} teamCost={effectiveTeamCost} />
+        ) : repoData ? (
+          <RepositoryTable data={repoData} teamCost={effectiveTeamCost} />
+        ) : null}
       </CardContent>
     </Card>
   )
