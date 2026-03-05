@@ -3,8 +3,9 @@
  * Resolve project_id for commits using a cascade:
  *   1. Jira epic mapping     (epic_key → project_id)
  *   2. Jira project mapping  (jira_project_key → project_id)
- *   3. Message prefix        (commit message prefix → project_id)
- *   4. Repository default    (repository_id → project_id)
+ *   3. Branch matching       (branch prefix → project_id)
+ *   4. Message prefix        (commit message prefix → project_id)
+ *   5. Repository default    (repository_id → project_id)
  *
  * Usage:
  *   pnpm resolve-projects           # only unresolved commits (project_id IS NULL)
@@ -39,15 +40,23 @@ interface TicketRow {
 async function loadMappings(): Promise<{
   epicMappings: Map<string, number>;
   projectMappings: Map<string, number>;
+  branchMappings: Map<string, number>;
+  branchExclusions: string[];
   prefixMappings: Map<string, number>;
   repoDefaults: Map<number, number>;
 }> {
-  const [epicRows, projRows, prefixRows, repoRows] = await Promise.all([
+  const [epicRows, projRows, branchRows, exclRows, prefixRows, repoRows] = await Promise.all([
     query<{ epic_key: string; project_id: number }>(
       'SELECT epic_key, project_id FROM jira_epic_mappings',
     ),
     query<{ jira_project_key: string; project_id: number }>(
       'SELECT jira_project_key, project_id FROM jira_project_mappings',
+    ),
+    query<{ prefix: string; project_id: number }>(
+      'SELECT prefix, project_id FROM branch_project_mappings',
+    ),
+    query<{ branch_name: string }>(
+      'SELECT branch_name FROM branch_exclusions',
     ),
     query<{ prefix: string; project_id: number }>(
       'SELECT prefix, project_id FROM commit_prefix_mappings',
@@ -60,6 +69,8 @@ async function loadMappings(): Promise<{
   return {
     epicMappings: new Map(epicRows.map(r => [r.epic_key, r.project_id])),
     projectMappings: new Map(projRows.map(r => [r.jira_project_key, r.project_id])),
+    branchMappings: new Map(branchRows.map(r => [r.prefix, r.project_id])),
+    branchExclusions: exclRows.map(r => r.branch_name),
     prefixMappings: new Map(prefixRows.map(r => [r.prefix, r.project_id])),
     repoDefaults: new Map(repoRows.map(r => [r.repository_id, r.project_id])),
   };
@@ -92,20 +103,39 @@ async function loadTicketAssociations(commitIds: number[]): Promise<Map<number, 
   return map;
 }
 
+/** Build a map of commit_id → branch names from the join table */
+async function loadBranchAssociations(commitIds: number[]): Promise<Map<number, string[]>> {
+  if (commitIds.length === 0) return new Map();
+
+  const placeholders = commitIds.map(() => '?').join(',');
+  const rows = await query<{ commit_id: number; branch_name: string }>(
+    `SELECT commit_id, branch_name FROM commit_branches WHERE commit_id IN (${placeholders})`,
+    commitIds,
+  );
+
+  const map = new Map<number, string[]>();
+  for (const row of rows) {
+    const list = map.get(row.commit_id) ?? [];
+    list.push(row.branch_name);
+    map.set(row.commit_id, list);
+  }
+  return map;
+}
+
 async function main(): Promise<void> {
   const force = process.argv.includes('--force');
 
   console.log('Loading mapping tables...');
-  const { epicMappings, projectMappings, prefixMappings, repoDefaults } = await loadMappings();
+  const { epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults } = await loadMappings();
   console.log(
-    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Prefix mappings: ${prefixMappings.size}, Repo defaults: ${repoDefaults.size}`,
+    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Branch mappings: ${branchMappings.size}, Branch exclusions: ${branchExclusions.length}, Prefix mappings: ${prefixMappings.size}, Repo defaults: ${repoDefaults.size}`,
   );
 
   console.log('Loading Jira issues...');
   const jiraIssues = await loadJiraIssues();
   console.log(`  Jira issues: ${jiraIssues.size}`);
 
-  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, prefixMappings, repoDefaults };
+  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults };
 
   // Load commits
   const whereClause = force ? '' : 'WHERE project_id IS NULL';
@@ -120,21 +150,25 @@ async function main(): Promise<void> {
   }
 
   // Stats per level
-  const stats = { epic: 0, jira_project: 0, message_prefix: 0, repo_default: 0, unallocated: 0, total: 0 };
+  const stats = { epic: 0, jira_project: 0, branch_match: 0, message_prefix: 0, repo_default: 0, unallocated: 0, total: 0 };
 
   // Process in batches
   for (let i = 0; i < commits.length; i += BATCH_SIZE) {
     const batch = commits.slice(i, i + BATCH_SIZE);
     const batchIds = batch.map(c => c.id);
 
-    // Load ticket associations for this batch
-    const ticketMap = await loadTicketAssociations(batchIds);
+    // Load ticket and branch associations for this batch
+    const [ticketMap, branchMap] = await Promise.all([
+      loadTicketAssociations(batchIds),
+      loadBranchAssociations(batchIds),
+    ]);
 
     await transaction(async (tx) => {
       for (const commit of batch) {
         const ticketIds = ticketMap.get(commit.id) ?? [];
+        const branchNames = branchMap.get(commit.id) ?? [];
         const result = resolveProjectForCommit(
-          { ticketIds, repositoryId: commit.repository_id, message: commit.message },
+          { ticketIds, repositoryId: commit.repository_id, message: commit.message, branchNames },
           ctx,
         );
 
@@ -162,6 +196,7 @@ async function main(): Promise<void> {
   console.log(`  Total:          ${stats.total}`);
   console.log(`  Epic mapping:   ${stats.epic}`);
   console.log(`  Jira project:   ${stats.jira_project}`);
+  console.log(`  Branch match:   ${stats.branch_match}`);
   console.log(`  Message prefix: ${stats.message_prefix}`);
   console.log(`  Repo default:   ${stats.repo_default}`);
   console.log(`  Unallocated:    ${stats.unallocated}`);
