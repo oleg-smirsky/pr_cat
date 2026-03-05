@@ -599,6 +599,27 @@ export function CostAllocationTable() {
         {/* Controls row */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="space-y-1.5">
+            <Label>Period</Label>
+            <ToggleGroup
+              type="single"
+              value={rangeMode ? "range" : "single"}
+              onValueChange={(val) => {
+                if (val === "range") {
+                  setRangeMode(true)
+                  if (!monthEnd) setMonthEnd(month)
+                } else if (val === "single") {
+                  setRangeMode(false)
+                }
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <ToggleGroupItem value="single">Month</ToggleGroupItem>
+              <ToggleGroupItem value="range">Range</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="cost-month">{rangeMode ? "From" : "Month"}</Label>
             <Input
               id="cost-month"
@@ -622,27 +643,6 @@ export function CostAllocationTable() {
               />
             </div>
           )}
-
-          <div className="space-y-1.5">
-            <Label>Period</Label>
-            <ToggleGroup
-              type="single"
-              value={rangeMode ? "range" : "single"}
-              onValueChange={(val) => {
-                if (val === "range") {
-                  setRangeMode(true)
-                  if (!monthEnd) setMonthEnd(month)
-                } else if (val === "single") {
-                  setRangeMode(false)
-                }
-              }}
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="single">Month</ToggleGroupItem>
-              <ToggleGroupItem value="range">Range</ToggleGroupItem>
-            </ToggleGroup>
-          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="cost-team">Team</Label>
