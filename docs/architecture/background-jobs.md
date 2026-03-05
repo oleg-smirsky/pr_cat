@@ -14,7 +14,7 @@ Jobs are I/O-bound (GitHub API calls with mandatory delays), so they yield the e
 
 ## Database
 
-Migration 6 adds the `background_jobs` table:
+Migration 7 adds the `background_jobs` table:
 
 | Column | Purpose |
 |---|---|
@@ -40,6 +40,7 @@ lib/jobs/
     full-repository-sync.ts          — Initial full sync of a repository
     sync-repository-prs.ts           — Incremental PR sync (recurring)
     sync-pr-reviews.ts               — Fetch missing reviews (recurring)
+    backfill-user-profiles.ts        — Fetch full GitHub profiles for org members
 app/api/jobs/
   route.ts                           — GET  /api/jobs (list all)
   [jobName]/run/route.ts             — POST /api/jobs/:name/run (trigger)
@@ -64,6 +65,20 @@ User disables tracking
 ```
 
 Recurring jobs re-schedule themselves after each successful run by resetting status to `pending` with `next_run_at` pushed forward by `interval_seconds`.
+
+### User profile backfill
+
+```
+User triggers org sync (Settings → GitHub → Sync)
+  → syncOrganizationMembers stores members with id/login/avatar only
+  → Enqueues backfill-user-profiles:<orgId>
+  → JobRunner picks it up, queries users WHERE profile_fetched_at IS NULL
+  → For each: calls GitHub users.getByUsername, updates name/email
+  → Sets profile_fetched_at = now() so the user is skipped on future runs
+  → Throttled to 1 request/second; progress saved after each user (resumable)
+```
+
+The `profile_fetched_at` column (migration 8) is the single source of truth for whether a user's full profile has been fetched. Users created via PR sync or member sync start with `profile_fetched_at = NULL`; the background job fills in the gaps.
 
 ## Throttling
 
