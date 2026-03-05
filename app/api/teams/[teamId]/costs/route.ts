@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, ApplicationContext } from '@/lib/core';
-import { getService } from '@/lib/core/container';
-import { ITeamCostService } from '@/lib/core/ports/team-cost.port';
+import { ServiceLocator } from '@/lib/core/container/service-locator';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +29,7 @@ const getHandler = async (
   }
 
   try {
-    const service = await getService<ITeamCostService>('TeamCostService');
+    const service = await ServiceLocator.getTeamCostService();
     const cost = await service.getCost(teamId, month);
     return NextResponse.json(cost);
   } catch (error) {
@@ -104,13 +103,13 @@ const putHandler = async (
   }
 
   try {
-    const service = await getService<ITeamCostService>('TeamCostService');
+    const service = await ServiceLocator.getTeamCostService();
     const result = await service.upsertCost({
       teamId,
       month: month!,
       totalCost: totalCost!,
       headcount: headcount!,
-      currency: currency || 'USD',
+      currency: currency || 'CZK',
     });
     return NextResponse.json(result);
   } catch (error) {

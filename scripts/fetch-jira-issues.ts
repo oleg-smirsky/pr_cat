@@ -68,7 +68,7 @@ async function fetchJiraIssue(
   issueKey: string,
   delayMs: number,
 ): Promise<Record<string, unknown> | null> {
-  const url = `${baseUrl}/rest/api/2/issue/${issueKey}?fields=${JIRA_FIELDS}`;
+  const url = `${baseUrl}/rest/api/2/issue/${encodeURIComponent(issueKey)}?fields=${JIRA_FIELDS}`;
 
   try {
     const response = await fetch(url, {
