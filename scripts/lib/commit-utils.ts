@@ -5,16 +5,6 @@ export function extractJiraTickets(message: string): string[] {
   return [...new Set(matches)];
 }
 
-/**
- * Extract Jira ticket ID from the first line of a commit message.
- * @deprecated Use extractJiraTickets() for full-body multi-ticket extraction.
- */
-export function extractJiraTicket(message: string): string | null {
-  const firstLine = message.split('\n')[0];
-  const match = firstLine.match(/^([A-Z]+-\d+)/);
-  return match ? match[1] : null;
-}
-
 /** Shape of the cached GitHub commit JSON we read from disk */
 export interface CachedCommitData {
   sha: string;
@@ -45,7 +35,6 @@ export interface ParsedCommit {
   committedAt: string;
   additions: number;
   deletions: number;
-  jiraTicketId: string | null;
   jiraTicketIds: string[];
   githubAuthorLogin: string | null;
   githubAuthorId: string | null;
@@ -61,7 +50,6 @@ export function parseCommitForIngestion(data: CachedCommitData): ParsedCommit {
     message: data.commit.message,
     additions: data.stats?.additions ?? 0,
     deletions: data.stats?.deletions ?? 0,
-    jiraTicketId: extractJiraTicket(data.commit.message),
     jiraTicketIds: extractJiraTickets(data.commit.message),
     githubAuthorLogin: data.author?.login ?? null,
     githubAuthorId: data.author?.id ? String(data.author.id) : null,

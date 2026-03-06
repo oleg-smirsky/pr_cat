@@ -422,6 +422,14 @@ const MIGRATIONS = [
         branch_name TEXT PRIMARY KEY
       );
     `
+  },
+  {
+    version: 15,
+    name: 'drop_commits_jira_ticket_id_column',
+    sql: `
+      DROP INDEX IF EXISTS idx_commits_jira_ticket_id;
+      ALTER TABLE commits DROP COLUMN jira_ticket_id;
+    `
   }
 ];
 

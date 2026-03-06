@@ -231,7 +231,6 @@ export interface Commit {
   deletions: number;
   pull_request_id: number | null;
   project_id: number | null;
-  jira_ticket_id: string | null;
   created_at: string;
 }
 

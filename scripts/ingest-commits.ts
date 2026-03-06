@@ -133,8 +133,8 @@ async function ingestRepoCommits(
         const result = await tx.execute(
           `INSERT OR IGNORE INTO commits
             (sha, repository_id, author_id, author_email, author_name,
-             message, committed_at, additions, deletions, jira_ticket_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             message, committed_at, additions, deletions)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             parsed.sha,
             repositoryId,
@@ -145,7 +145,6 @@ async function ingestRepoCommits(
             parsed.committedAt,
             parsed.additions,
             parsed.deletions,
-            parsed.jiraTicketId,
           ],
         );
 

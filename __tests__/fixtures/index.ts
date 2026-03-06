@@ -101,7 +101,6 @@ export const mockCommit: Commit = {
   deletions: 10,
   pull_request_id: null,
   project_id: null,
-  jira_ticket_id: 'BFW-1234',
   created_at: '2025-03-01T10:00:00Z',
 };
 

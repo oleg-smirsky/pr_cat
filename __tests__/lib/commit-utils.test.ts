@@ -1,5 +1,4 @@
 import {
-  extractJiraTicket,
   extractJiraTickets,
   parseCommitForIngestion,
   unsanitizeBranchName,
@@ -9,27 +8,27 @@ import {
 describe('commit-utils', () => {
   describe('extractJiraTickets', () => {
     it('extracts a ticket from the first line', () => {
-      expect(extractJiraTickets('BFW-1234 fix sensor')).toEqual(['BFW-1234']);
+      expect(extractJiraTickets('PROJ-1234 fix sensor')).toEqual(['PROJ-1234']);
     });
 
     it('extracts a ticket from the body', () => {
-      expect(extractJiraTickets('marlin: strong types\n\nBFW-7962')).toEqual(['BFW-7962']);
+      expect(extractJiraTickets('marlin: strong types\n\nPROJ-200')).toEqual(['PROJ-200']);
     });
 
     it('extracts multiple tickets from the body', () => {
-      expect(extractJiraTickets('C1L: support\n\nBFW-6883\nBFW-7154\nBFW-7182')).toEqual([
-        'BFW-6883',
-        'BFW-7154',
-        'BFW-7182',
+      expect(extractJiraTickets('ALPHA: support\n\nPROJ-100\nPROJ-200\nPROJ-300')).toEqual([
+        'PROJ-100',
+        'PROJ-200',
+        'PROJ-300',
       ]);
     });
 
     it('deduplicates tickets', () => {
-      expect(extractJiraTickets('Fix BFW-1234\n\nRelated to BFW-1234')).toEqual(['BFW-1234']);
+      expect(extractJiraTickets('Fix PROJ-1234\n\nRelated to PROJ-1234')).toEqual(['PROJ-1234']);
     });
 
     it('extracts tickets with different project keys', () => {
-      expect(extractJiraTickets('PRUSA-42 feature')).toEqual(['PRUSA-42']);
+      expect(extractJiraTickets('OTHER-42 feature')).toEqual(['OTHER-42']);
     });
 
     it('returns empty array for conventional commit messages', () => {
@@ -41,9 +40,9 @@ describe('commit-utils', () => {
     });
 
     it('extracts multiple inline references', () => {
-      expect(extractJiraTickets('cherry-picking BFW-7766 without BFW-7702')).toEqual([
-        'BFW-7766',
-        'BFW-7702',
+      expect(extractJiraTickets('cherry-picking PROJ-400 without PROJ-500')).toEqual([
+        'PROJ-400',
+        'PROJ-500',
       ]);
     });
 
@@ -52,45 +51,11 @@ describe('commit-utils', () => {
     });
   });
 
-  describe('extractJiraTicket (deprecated, backward compat)', () => {
-    it('extracts a ticket from the start of the first line', () => {
-      expect(extractJiraTicket('BFW-1234 fix sensor calibration')).toBe('BFW-1234');
-    });
-
-    it('extracts tickets with different project keys', () => {
-      expect(extractJiraTicket('PRUSA-42 add new feature')).toBe('PRUSA-42');
-    });
-
-    it('returns null for conventional commit messages', () => {
-      expect(extractJiraTicket('fix: resolve sensor issue')).toBeNull();
-    });
-
-    it('returns null for empty string', () => {
-      expect(extractJiraTicket('')).toBeNull();
-    });
-
-    it('only checks the first line', () => {
-      expect(extractJiraTicket('fix stuff\nBFW-999 in body')).toBeNull();
-    });
-
-    it('extracts ticket when first line has only the ticket', () => {
-      expect(extractJiraTicket('BFW-1234\nsecond line')).toBe('BFW-1234');
-    });
-
-    it('extracts ticket with large numbers', () => {
-      expect(extractJiraTicket('PROJ-99999 large ticket number')).toBe('PROJ-99999');
-    });
-
-    it('returns null when ticket is not at start of line', () => {
-      expect(extractJiraTicket('refs BFW-1234 fix something')).toBeNull();
-    });
-  });
-
   describe('parseCommitForIngestion', () => {
     const fullCommit: CachedCommitData = {
       sha: 'abc123def456',
       commit: {
-        message: 'BFW-42 fix temperature sensor\n\nDetailed description here',
+        message: 'PROJ-42 fix temperature sensor\n\nDetailed description here',
         author: {
           name: 'Jane Doe',
           email: 'jane@example.com',
@@ -114,12 +79,11 @@ describe('commit-utils', () => {
         sha: 'abc123def456',
         authorEmail: 'jane@example.com',
         authorName: 'Jane Doe',
-        message: 'BFW-42 fix temperature sensor\n\nDetailed description here',
+        message: 'PROJ-42 fix temperature sensor\n\nDetailed description here',
         committedAt: '2025-06-15T10:30:00Z',
         additions: 50,
         deletions: 10,
-        jiraTicketId: 'BFW-42',
-        jiraTicketIds: ['BFW-42'],
+        jiraTicketIds: ['PROJ-42'],
         githubAuthorLogin: 'janedoe',
         githubAuthorId: '12345',
       });
@@ -147,7 +111,7 @@ describe('commit-utils', () => {
       expect(result.deletions).toBe(0);
     });
 
-    it('returns null jiraTicketId and empty jiraTicketIds for non-Jira messages', () => {
+    it('returns empty jiraTicketIds for non-Jira messages', () => {
       const commit: CachedCommitData = {
         ...fullCommit,
         commit: {
@@ -157,7 +121,6 @@ describe('commit-utils', () => {
       };
       const result = parseCommitForIngestion(commit);
 
-      expect(result.jiraTicketId).toBeNull();
       expect(result.jiraTicketIds).toEqual([]);
     });
 
@@ -173,13 +136,12 @@ describe('commit-utils', () => {
         ...fullCommit,
         commit: {
           ...fullCommit.commit,
-          message: 'C1L: support\n\nBFW-6883\nBFW-7154\nBFW-7182',
+          message: 'ALPHA: support\n\nPROJ-6883\nPROJ-7154\nPROJ-7182',
         },
       };
       const result = parseCommitForIngestion(commit);
 
-      expect(result.jiraTicketIds).toEqual(['BFW-6883', 'BFW-7154', 'BFW-7182']);
-      expect(result.jiraTicketId).toBeNull(); // no ticket at start of first line
+      expect(result.jiraTicketIds).toEqual(['PROJ-6883', 'PROJ-7154', 'PROJ-7182']);
     });
   });
 
