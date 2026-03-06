@@ -27,9 +27,11 @@ import { query, execute, transaction } from '@/lib/db';
 import { runMigrations } from '@/lib/migrate';
 
 const BATCH_SIZE = 100;
+const forceMode = process.argv.includes('--force');
 
 interface IngestStats {
   inserted: number;
+  updated: number;
   skipped: number;
   unresolvedAuthors: number;
 }
@@ -107,7 +109,7 @@ async function ingestRepoCommits(
   owner: string,
   repo: string,
 ): Promise<IngestStats> {
-  const stats: IngestStats = { inserted: 0, skipped: 0, unresolvedAuthors: 0 };
+  const stats: IngestStats = { inserted: 0, updated: 0, skipped: 0, unresolvedAuthors: 0 };
   const cachedCommits = readCachedCommits(owner, repo);
 
   if (cachedCommits.length === 0) {
@@ -150,6 +152,22 @@ async function ingestRepoCommits(
 
         if (result.rowsAffected > 0) {
           stats.inserted++;
+        } else if (forceMode) {
+          // Re-parse: update parsed fields on existing commit
+          await tx.execute(
+            `UPDATE commits SET
+              author_id = COALESCE(?, author_id),
+              author_email = ?, author_name = ?,
+              message = ?, additions = ?, deletions = ?
+            WHERE sha = ? AND repository_id = ?`,
+            [
+              authorId,
+              parsed.authorEmail, parsed.authorName,
+              parsed.message, parsed.additions, parsed.deletions,
+              parsed.sha, repositoryId,
+            ],
+          );
+          stats.updated++;
         } else if (authorId) {
           // Backfill author_id on existing commits that were missing it
           await tx.execute(
@@ -160,21 +178,28 @@ async function ingestRepoCommits(
           stats.skipped++;
         }
 
-        // Insert into commit_jira_tickets join table
-        if (parsed.jiraTicketIds.length > 0) {
-          const commitRows = await tx.query<{ id: number }>(
-            'SELECT id FROM commits WHERE sha = ? AND repository_id = ?',
-            [parsed.sha, repositoryId],
-          );
+        // Upsert commit_jira_tickets join table
+        const commitRows = await tx.query<{ id: number }>(
+          'SELECT id FROM commits WHERE sha = ? AND repository_id = ?',
+          [parsed.sha, repositoryId],
+        );
 
-          if (commitRows.length > 0) {
-            const commitId = commitRows[0].id;
-            for (const ticketId of parsed.jiraTicketIds) {
-              await tx.execute(
-                'INSERT OR IGNORE INTO commit_jira_tickets (commit_id, jira_ticket_id) VALUES (?, ?)',
-                [commitId, ticketId],
-              );
-            }
+        if (commitRows.length > 0) {
+          const commitId = commitRows[0].id;
+
+          // In force mode, clear old tickets so re-parsed ones take over
+          if (forceMode) {
+            await tx.execute(
+              'DELETE FROM commit_jira_tickets WHERE commit_id = ?',
+              [commitId],
+            );
+          }
+
+          for (const ticketId of parsed.jiraTicketIds) {
+            await tx.execute(
+              'INSERT OR IGNORE INTO commit_jira_tickets (commit_id, jira_ticket_id) VALUES (?, ?)',
+              [commitId, ticketId],
+            );
           }
         }
       }
@@ -278,9 +303,10 @@ async function main(): Promise<void> {
 
     // Ingest commits
     const commitStats = await ingestRepoCommits(slug, repositoryId, owner, repo);
-    console.log(
-      `[${slug}] Commits: ${commitStats.inserted} new, ${commitStats.skipped} skipped, ${commitStats.unresolvedAuthors} unresolved authors`,
-    );
+    const parts = [`${commitStats.inserted} new`];
+    if (commitStats.updated > 0) parts.push(`${commitStats.updated} updated`);
+    parts.push(`${commitStats.skipped} skipped`, `${commitStats.unresolvedAuthors} unresolved authors`);
+    console.log(`[${slug}] Commits: ${parts.join(', ')}`);
 
     // Ingest branch mappings
     const branchStats = await ingestRepoBranches(slug, repositoryId, owner, repo);
