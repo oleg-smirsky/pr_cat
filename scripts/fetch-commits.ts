@@ -27,13 +27,46 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function withRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isTransient = err instanceof Error && (
+        err.message.includes('ETIMEDOUT') ||
+        err.message.includes('ECONNRESET') ||
+        err.message.includes('fetch failed') ||
+        (err as { status?: number }).status === 500 ||
+        (err as { status?: number }).status === 502 ||
+        (err as { status?: number }).status === 503
+      );
+      if (!isTransient || i === retries - 1) throw err;
+      const delay = (i + 1) * 5000;
+      console.log(`Transient error, retrying in ${delay / 1000}s... (${(err as Error).message})`);
+      await sleep(delay);
+    }
+  }
+  throw new Error('unreachable');
+}
+
+// Shared rate-limit gate: all workers wait on the same promise
+let rateLimitGate: Promise<void> | null = null;
+
 async function handleRateLimit(headers: Record<string, string | undefined>): Promise<void> {
+  // If another worker already triggered a wait, join it
+  if (rateLimitGate) {
+    await rateLimitGate;
+    return;
+  }
+
   const remaining = Number(headers['x-ratelimit-remaining'] ?? '999');
-  if (remaining < 100) {
+  if (remaining < 50) {
     const resetEpoch = Number(headers['x-ratelimit-reset'] ?? '0');
-    const waitMs = Math.max(0, resetEpoch * 1000 - Date.now()) + 1000;
-    console.log(`Rate limit low (${remaining} remaining). Sleeping ${Math.round(waitMs / 1000)}s...`);
-    await sleep(waitMs);
+    const waitMs = Math.max(0, resetEpoch * 1000 - Date.now()) + 2000;
+    console.log(`Rate limit low (${remaining} remaining). All workers sleeping ${Math.round(waitMs / 1000)}s...`);
+    rateLimitGate = sleep(waitMs);
+    await rateLimitGate;
+    rateLimitGate = null;
   }
 }
 
@@ -92,13 +125,13 @@ async function main(): Promise<void> {
     // Pre-filter: concurrently check which branches have recent commits
     console.log(`[${owner}/${repo}] Checking branches for recent activity (concurrency=${CONCURRENCY})...`);
     const branchHasCommits = await mapConcurrent(branches, CONCURRENCY, async (branch) => {
-      const { data: commits } = await octokit.repos.listCommits({
+      const { data: commits } = await withRetry(() => octokit.repos.listCommits({
         owner,
         repo,
         sha: branch.name,
         since: sinceISO,
         per_page: 1,
-      });
+      }));
       return commits.length > 0;
     });
 
@@ -112,7 +145,7 @@ async function main(): Promise<void> {
       console.log(`\n[${owner}/${repo}] Branch: ${branchName}`);
 
       // Paginate commits for this branch
-      const commits = await octokit.paginate(
+      const commits = await withRetry(() => octokit.paginate(
         octokit.repos.listCommits,
         {
           owner,
@@ -121,30 +154,22 @@ async function main(): Promise<void> {
           since: sinceISO,
           per_page: 100,
         }
-      );
+      ));
 
-      const shas: string[] = [];
-      let fetched = 0;
-      let skipped = 0;
+      const shas: string[] = commits.map(c => c.sha);
 
-      for (const commit of commits) {
-        const sha = commit.sha;
-        shas.push(sha);
+      // Filter to uncached commits
+      const uncached = shas.filter(sha => !isCommitCached(owner, repo, sha));
+      const skipped = shas.length - uncached.length;
 
-        if (isCommitCached(owner, repo, sha)) {
-          skipped++;
-          continue;
-        }
-
-        // Fetch full commit details
-        const response = await octokit.repos.getCommit({ owner, repo, ref: sha });
+      // Fetch uncached commits concurrently
+      await mapConcurrent(uncached, CONCURRENCY, async (sha) => {
+        const response = await withRetry(() => octokit.repos.getCommit({ owner, repo, ref: sha }));
         const commitPath = path.join(cacheDir, 'commits', `${sha}.json`);
         saveCacheFile(commitPath, response.data);
-        fetched++;
-
-        // Rate limit handling
         await handleRateLimit(response.headers as Record<string, string | undefined>);
-      }
+      });
+      const fetched = uncached.length;
 
       // Save ordered commit list per branch
       const commitListPath = path.join(cacheDir, 'commit-list', `${sanitized}.json`);
