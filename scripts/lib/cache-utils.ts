@@ -26,10 +26,11 @@ export function saveCacheFile(filePath: string, data: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-/** Parse --repos and --since CLI arguments */
-export function parseArgs(args: string[]): { repos: string[]; since: string } {
+/** Parse --repos, --since, and --team-config CLI arguments */
+export function parseArgs(args: string[]): { repos: string[]; since: string; teamConfig?: string } {
   let repos: string[] = [];
   let since = '2025-01-01';
+  let teamConfig: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--repos' && args[i + 1]) {
@@ -38,10 +39,13 @@ export function parseArgs(args: string[]): { repos: string[]; since: string } {
     } else if (args[i] === '--since' && args[i + 1]) {
       since = args[i + 1];
       i++;
+    } else if (args[i] === '--team-config' && args[i + 1]) {
+      teamConfig = args[i + 1];
+      i++;
     }
   }
 
-  return { repos, since };
+  return { repos, since, teamConfig };
 }
 
 /** Parse owner/repo string into parts */

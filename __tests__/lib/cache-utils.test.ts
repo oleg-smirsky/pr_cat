@@ -144,6 +144,20 @@ describe('cache-utils', () => {
         since: '2025-01-01',
       });
     });
+
+    it('parses --team-config argument', () => {
+      const result = parseArgs(['--repos', 'org/repo', '--team-config', '../config/mappings.json']);
+      expect(result).toEqual({
+        repos: ['org/repo'],
+        since: '2025-01-01',
+        teamConfig: '../config/mappings.json',
+      });
+    });
+
+    it('returns undefined teamConfig when not provided', () => {
+      const result = parseArgs(['--repos', 'org/repo']);
+      expect(result.teamConfig).toBeUndefined();
+    });
   });
 
   describe('parseRepoSlug', () => {
