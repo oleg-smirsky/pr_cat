@@ -39,14 +39,76 @@ export interface ResolutionResult {
 }
 
 /**
- * Extract the leading prefix from a commit message first line.
- * Matches patterns like "INDX:", "INDX_HEAD:", "MMU ", "C1L:" etc.
- * Returns the prefix uppercased, or null.
+ * Extract project-identifying prefixes from a commit message first line.
+ * Returns all matched prefixes (uppercased) so the caller can look up each one.
+ *
+ * Strategies (in order):
+ *   1. Leading prefix:  "INDX: foo"  → ["INDX"]
+ *   2. Nested prefix:   "fixup! INDX: foo", "(HACK) INDX: foo" → ["INDX"]
+ *      Chains:          "fixup! fixup! INDX: foo" → ["INDX"]
+ *      Reverts:         'Revert "INDX: foo"' → ["INDX"]
+ *   3. Slash prefix:    "homing/corexy: foo" → ["HOMING/COREXY", "HOMING"]
+ *   4. Multi-word:      "phstep calib: foo"  → ["PHSTEP CALIB", "PHSTEP"]
+ *   5. Keyword scan:    "Fix induction heater on INDX_HEAD" → ["INDX_HEAD", "INDX"]
  */
-export function extractMessagePrefix(message: string): string | null {
+export function extractMessagePrefixes(message: string): string[] {
   const firstLine = message.split('\n')[0];
-  const match = firstLine.match(/^([A-Za-z][A-Za-z0-9_]+)[:\s]/);
-  return match ? match[1].toUpperCase() : null;
+  const prefixes: string[] = [];
+
+  // Strip leading noise: fixup!, squash!, (HACK), (DEBUG), (SQUASH), (PRIVATE), (CHECK), (TMP), (REVERT)
+  // Also handle chains: "fixup! fixup! INDX:"
+  // Also handle: Revert "INDX: foo"
+  let cleaned = firstLine;
+  cleaned = cleaned.replace(/^(?:(?:fixup!|squash!)\s*)+/i, '');
+  cleaned = cleaned.replace(/^\([^)]+\)\s*/g, '');
+  cleaned = cleaned.replace(/^Revert\s+"?/i, '');
+  cleaned = cleaned.replace(/"$/, '');
+  cleaned = cleaned.trim();
+
+  // Strategy 1: leading prefix from cleaned line  "WORD:" or "WORD "
+  const leading = cleaned.match(/^([A-Za-z][A-Za-z0-9_]+)[:\s]/);
+  if (leading) {
+    prefixes.push(leading[1].toUpperCase());
+  }
+
+  // Strategy 2: slash-separated prefix  "homing/corexy:"
+  const slash = cleaned.match(/^([A-Za-z][A-Za-z0-9_]*(?:\/[A-Za-z0-9_]+)+)[:\s]/);
+  if (slash) {
+    const full = slash[1].toUpperCase();
+    prefixes.push(full);
+    prefixes.push(full.split('/')[0]);
+  }
+
+  // Strategy 3: multi-word prefix before colon  "phstep calib:"
+  const multiWord = cleaned.match(/^([A-Za-z][A-Za-z0-9_]+(?:\s+[A-Za-z][A-Za-z0-9_]+)*):\s/);
+  if (multiWord) {
+    const full = multiWord[1].toUpperCase();
+    if (full.includes(' ')) {
+      prefixes.push(full);
+      prefixes.push(full.split(' ')[0]);
+    }
+  }
+
+  // Strategy 4: keyword scan — find known project identifiers anywhere in the first line
+  // Matches word boundaries: "Fix something on INDX_HEAD" → INDX_HEAD
+  const keywords = firstLine.toUpperCase().matchAll(/\b([A-Z][A-Z0-9_]{2,})\b/g);
+  for (const m of keywords) {
+    const word = m[1];
+    prefixes.push(word);
+    // Also try base prefix: INDX_HEAD → INDX
+    if (word.includes('_')) {
+      prefixes.push(word.split('_')[0]);
+    }
+  }
+
+  // Deduplicate while preserving order
+  return [...new Set(prefixes)];
+}
+
+/** @deprecated Use extractMessagePrefixes instead */
+export function extractMessagePrefix(message: string): string | null {
+  const prefixes = extractMessagePrefixes(message);
+  return prefixes.length > 0 ? prefixes[0] : null;
 }
 
 /**
@@ -152,19 +214,9 @@ export function resolveProjectForCommit(
     }
   }
 
-  // Level 3: branch matching
-  const branchProjectId = resolveBranchProject(
-    commit.branchNames,
-    ctx.branchMappings,
-    ctx.branchExclusions,
-  );
-  if (branchProjectId !== null) {
-    return { projectId: branchProjectId, level: 'branch_match' };
-  }
-
-  // Level 4: message prefix
-  const prefix = extractMessagePrefix(commit.message);
-  if (prefix) {
+  // Level 3: message prefix (branch matching removed — unreliable after merge)
+  const prefixes = extractMessagePrefixes(commit.message);
+  for (const prefix of prefixes) {
     const projectId = ctx.prefixMappings.get(prefix);
     if (projectId !== undefined) {
       return { projectId, level: 'message_prefix' };

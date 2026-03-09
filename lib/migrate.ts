@@ -430,6 +430,14 @@ const MIGRATIONS = [
       DROP INDEX IF EXISTS idx_commits_jira_ticket_id;
       ALTER TABLE commits DROP COLUMN jira_ticket_id;
     `
+  },
+  {
+    version: 16,
+    name: 'add_is_canonical_column',
+    sql: `
+      ALTER TABLE commits ADD COLUMN is_canonical BOOLEAN DEFAULT 1;
+      CREATE INDEX IF NOT EXISTS idx_commits_is_canonical ON commits(is_canonical);
+    `
   }
 ];
 

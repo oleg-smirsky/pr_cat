@@ -17,6 +17,7 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import { query, execute, transaction } from '@/lib/db';
+import { runMigrations } from '@/lib/migrate';
 import {
   resolveProjectForCommit,
   type MappingContext,
@@ -24,6 +25,74 @@ import {
 } from './lib/resolution-utils';
 
 const BATCH_SIZE = 100;
+const MIN_MESSAGE_LENGTH = 10;
+
+/**
+ * Cherry-pick deduplication (V3b algorithm).
+ *
+ * Groups commits by (author_email, message prefix). Within each group the
+ * commit sitting on the fewest branches is treated as canonical — it landed on
+ * the most specific branch first (e.g. RELEASE-6.4) rather than being swept
+ * into an integration branch (indx, private) via rebase.
+ *
+ * Short messages (< MIN_MESSAGE_LENGTH chars) are always canonical to avoid
+ * false grouping on "WIP", "fix", etc.
+ */
+async function markCanonicalCommits(): Promise<void> {
+  console.log('\nDeduplication pass (V3b)...');
+
+  // Reset: mark everything canonical first
+  await execute('UPDATE commits SET is_canonical = 1');
+
+  // Find duplicate groups: same author + message, multiple SHAs, long enough message
+  const groups = await query<{ author_email: string; msg_key: string; cnt: number }>(
+    `SELECT author_email, SUBSTR(message, 1, 200) AS msg_key, COUNT(*) AS cnt
+     FROM commits
+     WHERE LENGTH(TRIM(message)) >= ?
+     GROUP BY author_email, SUBSTR(message, 1, 200)
+     HAVING cnt > 1`,
+    [MIN_MESSAGE_LENGTH],
+  );
+
+  console.log(`  Duplicate groups: ${groups.length}`);
+  if (groups.length === 0) return;
+
+  let totalMarked = 0;
+
+  for (let i = 0; i < groups.length; i += BATCH_SIZE) {
+    const batch = groups.slice(i, i + BATCH_SIZE);
+
+    await transaction(async (tx) => {
+      for (const group of batch) {
+        // Get all commits in this group with their branch count
+        const copies = await tx.query<{ id: number; num_branches: number }>(
+          `SELECT c.id, COUNT(cb.branch_name) AS num_branches
+           FROM commits c
+           LEFT JOIN commit_branches cb ON c.id = cb.commit_id
+           WHERE c.author_email = ? AND SUBSTR(c.message, 1, 200) = ?
+           GROUP BY c.id
+           ORDER BY num_branches ASC, c.id ASC`,
+          [group.author_email, group.msg_key],
+        );
+
+        // First row (fewest branches, lowest id as tiebreak) is canonical; rest are duplicates
+        const dupIds = copies.slice(1).map(c => c.id);
+        if (dupIds.length > 0) {
+          const placeholders = dupIds.map(() => '?').join(',');
+          await tx.execute(
+            `UPDATE commits SET is_canonical = 0 WHERE id IN (${placeholders})`,
+            dupIds,
+          );
+          totalMarked += dupIds.length;
+        }
+      }
+    });
+  }
+
+  const canonical = await query<{ cnt: number }>('SELECT COUNT(*) AS cnt FROM commits WHERE is_canonical = 1');
+  console.log(`  Marked ${totalMarked} commits as non-canonical`);
+  console.log(`  Canonical commits: ${canonical[0].cnt} / ${canonical[0].cnt + totalMarked}`);
+}
 
 interface CommitRow {
   id: number;
@@ -123,6 +192,7 @@ async function loadBranchAssociations(commitIds: number[]): Promise<Map<number, 
 }
 
 async function main(): Promise<void> {
+  await runMigrations();
   const force = process.argv.includes('--force');
 
   console.log('Loading mapping tables...');
@@ -200,6 +270,9 @@ async function main(): Promise<void> {
   console.log(`  Message prefix: ${stats.message_prefix}`);
   console.log(`  Repo default:   ${stats.repo_default}`);
   console.log(`  Unallocated:    ${stats.unallocated}`);
+
+  // Deduplication pass — mark cherry-pick duplicates as non-canonical
+  await markCanonicalCommits();
 }
 
 main().catch(err => {

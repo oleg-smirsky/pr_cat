@@ -21,7 +21,9 @@
     "fetch-jira-issues": "npx tsx scripts/fetch-jira-issues.ts",
     "ingest-jira-issues": "npx tsx scripts/ingest-jira-issues.ts",
     "resolve-projects": "npx tsx scripts/resolve-projects.ts",
-    "seed-mappings": "npx tsx scripts/seed-mappings.ts"
+    "seed-mappings": "npx tsx scripts/seed-mappings.ts",
+    "export-csv": "npx tsx scripts/export-commits-csv.ts",
+    "export-report": "npx tsx scripts/export-allocation-report.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.56",

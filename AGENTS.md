@@ -50,6 +50,35 @@
 - Commit messages in history are short and topic-focused (e.g. “cleanup”, “db optimizations”); prefer an imperative summary and add an optional scope when helpful (`auth: …`, `db: …`).
 - PRs should be small and atomic, include a clear description, and add screenshots for UI changes; run `pnpm lint` and relevant `pnpm test:*` commands before requesting review.
 
+## Cost Allocation Pipeline
+
+Scripts in `scripts/` implement a commit-based cost allocation pipeline. Run in order:
+
+1. `pnpm fetch-commits` — fetch commits from GitHub API into `.cache/`
+2. `pnpm ingest-commits` — parse and insert commits into the database
+3. `pnpm fetch-jira-issues` / `pnpm ingest-jira-issues` — fetch and store Jira ticket data
+4. `pnpm seed-mappings --config ../pr_cat_prusa/mappings.json` — load project/epic/prefix mappings
+5. `pnpm resolve-projects` — resolve each commit to a project via the cascade (epic → jira project → message prefix → repo default), then deduplicate cherry-picks
+6. `pnpm export-csv` — export denormalized canonical commits as CSV (`exports/commits.csv`)
+7. `pnpm export-report` — generate interactive HTML allocation report (`exports/allocation-report.html`)
+
+### Allocation Report
+
+`pnpm export-report` generates a drill-down HTML report: Month → Project (team %) → Person (FTE) → Commits.
+
+```
+pnpm export-report -- --team Buddy --from 2025-10 --to 2026-02
+pnpm export-report -- --team Buddy --month 2026-02
+pnpm export-report                                    # all people, all months
+```
+
+- `--team <name>` — filter to a team defined in the config file (loads members and FTE capacity)
+- `--config <path>` — path to mappings JSON (default: `../pr_cat_prusa/mappings.json`)
+- `--from` / `--to` — month range (YYYY-MM)
+- `--month` — single month shorthand
+
+Team configuration (members, emails, capacity) lives in `../pr_cat_prusa/mappings.json` under `"teams"`. The report reads already-computed `project_id` and `is_canonical` from the database — it does not duplicate resolution logic.
+
 ## Configuration & Security Tips
 
 - Create local config via `cp environment.example .env.local` (see `ENVIRONMENT_SETUP.md` for GitHub/Turso details).

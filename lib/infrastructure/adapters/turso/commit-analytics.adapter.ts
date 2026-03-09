@@ -75,6 +75,7 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
          JOIN team_members tm ON tm.user_id = c.author_id
          WHERE c.committed_at >= ? AND c.committed_at < ?
            AND tm.team_id = ?
+           AND c.is_canonical = 1
          GROUP BY c.project_id
          ORDER BY commit_count DESC`,
         [timeMin, timeMax, teamId]
@@ -85,6 +86,7 @@ export class TursoCommitAnalyticsService implements ICommitAnalyticsService {
        FROM commits c
        LEFT JOIN projects p ON c.project_id = p.id
        WHERE c.committed_at >= ? AND c.committed_at < ?
+         AND c.is_canonical = 1
        GROUP BY c.project_id
        ORDER BY commit_count DESC`,
       [timeMin, timeMax]
