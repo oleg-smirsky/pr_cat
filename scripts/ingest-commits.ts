@@ -6,10 +6,11 @@
  * and branch lists from .cache/github/{owner}/{repo}/commit-list/,
  * then inserts them into the commits and commit_branches tables.
  *
+ * Automatically discovers fork cache directories (via fork-of.json marker)
+ * and attributes their commits to the parent repository.
+ *
  * Usage:
  *   pnpm ingest-commits --repos owner/repo1,owner/repo2
- *
- * Requires TURSO_URL (and optionally TURSO_TOKEN) environment variables.
  */
 
 import { config } from 'dotenv';
@@ -24,6 +25,7 @@ import {
   type CachedCommitData,
 } from './lib/commit-utils';
 import { query, execute, transaction } from '@/lib/db';
+import { readForkMarker } from './lib/fork-utils';
 import { runMigrations } from '@/lib/migrate';
 
 const BATCH_SIZE = 100;
@@ -283,36 +285,64 @@ async function main(): Promise<void> {
 
   await runMigrations();
 
+  // Build list of cache dirs to ingest: explicit repos + discovered fork dirs
+  interface IngestTarget {
+    slug: string;         // cache directory key (e.g., "alice/my-project")
+    owner: string;
+    repo: string;
+    dbSlug: string;       // repository to resolve in DB (parent slug for forks)
+  }
+
+  const targets: IngestTarget[] = [];
+
   for (const slug of repos) {
     const { owner, repo } = parseRepoSlug(slug);
-    console.log(`\n[${slug}] Starting ingest...`);
+    targets.push({ slug, owner, repo, dbSlug: slug });
 
-    // Look up repository_id
+    // Check for fork cache directories that reference this parent
+    const cacheRoot = path.join(process.cwd(), '.cache', 'github');
+    if (!fs.existsSync(cacheRoot)) continue;
+
+    for (const forkOwner of fs.readdirSync(cacheRoot)) {
+      if (forkOwner === owner) continue; // Skip parent itself
+      const forkCacheDir = path.join(cacheRoot, forkOwner, repo);
+      const parentSlug = readForkMarker(forkCacheDir);
+      if (parentSlug === slug) {
+        targets.push({
+          slug: `${forkOwner}/${repo}`,
+          owner: forkOwner,
+          repo,
+          dbSlug: slug, // Attribute to parent repo
+        });
+      }
+    }
+  }
+
+  for (const target of targets) {
+    const isFork = target.slug !== target.dbSlug;
+    const label = isFork ? `${target.slug} → ${target.dbSlug}` : target.slug;
+    console.log(`\n[${label}] Starting ingest...`);
+
     const repoRows = await query<{ id: number }>(
       'SELECT id FROM repositories WHERE full_name = ?',
-      [slug],
+      [target.dbSlug],
     );
 
     if (repoRows.length === 0) {
-      console.warn(`[${slug}] Repository not found in database — skipping.`);
-      console.warn(`  Hint: Insert the repo first: INSERT INTO repositories (full_name) VALUES ('${slug}')`);
+      console.warn(`[${target.dbSlug}] Repository not found in database — skipping.`);
       continue;
     }
 
     const repositoryId = repoRows[0].id;
 
-    // Ingest commits
-    const commitStats = await ingestRepoCommits(slug, repositoryId, owner, repo);
+    const commitStats = await ingestRepoCommits(label, repositoryId, target.owner, target.repo);
     const parts = [`${commitStats.inserted} new`];
     if (commitStats.updated > 0) parts.push(`${commitStats.updated} updated`);
     parts.push(`${commitStats.skipped} skipped`, `${commitStats.unresolvedAuthors} unresolved authors`);
-    console.log(`[${slug}] Commits: ${parts.join(', ')}`);
+    console.log(`[${label}] Commits: ${parts.join(', ')}`);
 
-    // Ingest branch mappings
-    const branchStats = await ingestRepoBranches(slug, repositoryId, owner, repo);
-    console.log(
-      `[${slug}] Branches: ${branchStats.branchesProcessed} processed, ${branchStats.linksInserted} links inserted`,
-    );
+    const branchStats = await ingestRepoBranches(label, repositoryId, target.owner, target.repo);
+    console.log(`[${label}] Branches: ${branchStats.branchesProcessed} processed, ${branchStats.linksInserted} links inserted`);
   }
 
   console.log('\nDone.');
