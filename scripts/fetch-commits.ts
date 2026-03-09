@@ -4,7 +4,9 @@
  *
  * Usage:
  *   pnpm fetch-commits --repos owner/repo1,owner/repo2 --since 2025-01-01
+ *   pnpm fetch-commits --repos owner/repo1 --since 2025-01-01 --team-config ../config/mappings.json
  *
+ * With --team-config, also discovers and fetches from team members' forks.
  * Requires GITHUB_TOKEN environment variable (loaded from .env.local).
  */
 
@@ -22,6 +24,7 @@ import {
   saveCacheFile,
   sanitizeBranchName,
 } from './lib/cache-utils';
+import { loadGitHubUsernames, saveForkMarker } from './lib/fork-utils';
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -92,6 +95,35 @@ async function mapConcurrent<T, R>(
   return results;
 }
 
+/** Discover forks of tracked repos for each team member GitHub username. */
+async function discoverForks(
+  octokit: Octokit,
+  parentSlugs: string[],
+  githubUsernames: string[],
+): Promise<Array<{ forkOwner: string; repoName: string; parentSlug: string }>> {
+  const forks: Array<{ forkOwner: string; repoName: string; parentSlug: string }> = [];
+
+  for (const parentSlug of parentSlugs) {
+    const { repo } = parseRepoSlug(parentSlug);
+
+    await mapConcurrent(githubUsernames, CONCURRENCY, async (username) => {
+      try {
+        await octokit.repos.get({ owner: username, repo });
+        forks.push({ forkOwner: username, repoName: repo, parentSlug });
+        console.log(`  Found fork: ${username}/${repo} (fork of ${parentSlug})`);
+      } catch (err: unknown) {
+        if ((err as { status?: number }).status === 404) {
+          // No fork — expected, skip silently
+        } else {
+          console.warn(`  Warning: Could not check ${username}/${repo}: ${(err as Error).message}`);
+        }
+      }
+    });
+  }
+
+  return forks;
+}
+
 async function main(): Promise<void> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
@@ -99,7 +131,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const { repos, since } = parseArgs(process.argv.slice(2));
+  const { repos, since, teamConfig } = parseArgs(process.argv.slice(2));
   if (repos.length === 0) {
     console.error('Error: No repos specified. Use --repos owner/repo1,owner/repo2');
     process.exit(1);
@@ -107,6 +139,16 @@ async function main(): Promise<void> {
 
   const sinceISO = new Date(since).toISOString();
   const octokit = new Octokit({ auth: token });
+
+  let forkSlugs: Array<{ forkOwner: string; repoName: string; parentSlug: string }> = [];
+  if (teamConfig) {
+    const usernames = loadGitHubUsernames(teamConfig);
+    if (usernames.length > 0) {
+      console.log(`\nDiscovering forks for ${usernames.length} team members...`);
+      forkSlugs = await discoverForks(octokit, repos, usernames);
+      console.log(`Found ${forkSlugs.length} fork(s).`);
+    }
+  }
 
   for (const slug of repos) {
     const { owner, repo } = parseRepoSlug(slug);
@@ -178,6 +220,57 @@ async function main(): Promise<void> {
       console.log(
         `[${owner}/${repo}] Fetched ${fetched}/${commits.length} commits, ${skipped} skipped (cached)`
       );
+    }
+  }
+
+  // Fetch from discovered forks
+  for (const { forkOwner, repoName, parentSlug } of forkSlugs) {
+    const forkSlug = `${forkOwner}/${repoName}`;
+    const cacheDir = getRepoCacheDir(forkOwner, repoName);
+
+    // Write fork-of.json marker
+    saveForkMarker(cacheDir, parentSlug);
+
+    console.log(`\n[${forkSlug}] (fork of ${parentSlug}) Fetching branches...`);
+
+    const branches = await octokit.paginate(octokit.repos.listBranches, {
+      owner: forkOwner, repo: repoName, per_page: 100,
+    });
+    saveCacheFile(path.join(cacheDir, 'branches.json'), branches);
+    console.log(`[${forkSlug}] Found ${branches.length} branches.`);
+
+    const branchHasCommits = await mapConcurrent(branches, CONCURRENCY, async (branch) => {
+      const { data: commits } = await withRetry(() => octokit.repos.listCommits({
+        owner: forkOwner, repo: repoName, sha: branch.name, since: sinceISO, per_page: 1,
+      }));
+      return commits.length > 0;
+    });
+
+    const activeBranches = branches.filter((_, i) => branchHasCommits[i]);
+    console.log(`[${forkSlug}] ${activeBranches.length}/${branches.length} branches have recent commits.`);
+
+    for (const branch of activeBranches) {
+      const branchName = branch.name;
+      const sanitized = sanitizeBranchName(branchName);
+      console.log(`\n[${forkSlug}] Branch: ${branchName}`);
+
+      const commits = await withRetry(() => octokit.paginate(
+        octokit.repos.listCommits,
+        { owner: forkOwner, repo: repoName, sha: branchName, since: sinceISO, per_page: 100 },
+      ));
+
+      const shas: string[] = commits.map(c => c.sha);
+      const uncached = shas.filter(sha => !isCommitCached(forkOwner, repoName, sha));
+
+      await mapConcurrent(uncached, CONCURRENCY, async (sha) => {
+        const response = await withRetry(() => octokit.repos.getCommit({ owner: forkOwner, repo: repoName, ref: sha }));
+        const commitPath = path.join(cacheDir, 'commits', `${sha}.json`);
+        saveCacheFile(commitPath, response.data);
+        await handleRateLimit(response.headers as Record<string, string | undefined>);
+      });
+
+      saveCacheFile(path.join(cacheDir, 'commit-list', `${sanitized}.json`), shas);
+      console.log(`[${forkSlug}] Fetched ${uncached.length}/${commits.length} commits, ${shas.length - uncached.length} skipped (cached)`);
     }
   }
 
