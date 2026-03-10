@@ -8,8 +8,8 @@
  *
  * Usage:
  *   pnpm export-report                                    # all months, all people
- *   pnpm export-report --team Buddy                       # team from mappings.json
- *   pnpm export-report --team Buddy --config path.json    # custom config path
+ *   pnpm export-report --team <name>                      # team from mappings.json
+ *   pnpm export-report --team <name> --config path.json   # custom config path
  *   pnpm export-report --month 2026-02                    # single month
  *   pnpm export-report --from 2025-10 --to 2026-02
  */
@@ -153,7 +153,7 @@ interface MonthData {
   projects: ProjectInMonth[];
 }
 
-function buildReport(commits: CommitRow[], ticketMap: Map<number, string[]>, capacityMap?: Map<string, number>): MonthData[] {
+function buildReport(commits: CommitRow[], ticketMap: Map<number, string[]>, capacityMap?: Map<string, number>, sortLastProjects = new Set<string>()): MonthData[] {
   // Group: month → author → project → commits
   const tree = new Map<string, Map<string, Map<string, CommitDisplay[]>>>();
 
@@ -229,7 +229,12 @@ function buildReport(commits: CommitRow[], ticketMap: Map<number, string[]>, cap
       });
     }
 
-    projects.sort((a, b) => b.teamFte - a.teamFte);
+    projects.sort((a, b) => {
+      const aLast = sortLastProjects.has(a.name) ? 1 : 0;
+      const bLast = sortLastProjects.has(b.name) ? 1 : 0;
+      if (aLast !== bLast) return aLast - bLast;
+      return b.teamFte - a.teamFte;
+    });
     months.push({ month, totalFtes, projects });
   }
 
@@ -404,13 +409,26 @@ async function main(): Promise<void> {
 
   let teamEmails: Set<string> | undefined;
   let capacityMap: Map<string, number> | undefined;
+  let sortLastProjects = new Set<string>();
   let teamLabel = '';
 
+  const configPath = configIdx !== -1 && process.argv[configIdx + 1]
+    ? process.argv[configIdx + 1]
+    : path.join(process.cwd(), '..', 'pr_cat_prusa', 'mappings.json');
+
+  if (fs.existsSync(configPath)) {
+    const rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    if (Array.isArray(rawConfig.reportSortLast)) {
+      sortLastProjects = new Set(rawConfig.reportSortLast);
+    }
+  }
+
   if (teamIdx !== -1) {
-    const teamName = process.argv[teamIdx + 1] ?? 'Buddy';
-    const configPath = configIdx !== -1 && process.argv[configIdx + 1]
-      ? process.argv[configIdx + 1]
-      : path.join(process.cwd(), '..', 'pr_cat_prusa', 'mappings.json');
+    const teamName = process.argv[teamIdx + 1];
+    if (!teamName) {
+      console.error('Error: --team requires a team name argument');
+      process.exit(1);
+    }
     console.log(`Loading team "${teamName}" from ${configPath}`);
     const team = loadTeamConfig(configPath, teamName);
     teamEmails = getTeamEmails(team);
@@ -426,7 +444,7 @@ async function main(): Promise<void> {
 
   console.log(`  Canonical commits: ${commits.length}`);
 
-  const report = buildReport(commits, ticketMap, capacityMap);
+  const report = buildReport(commits, ticketMap, capacityMap, sortLastProjects);
 
   const outDir = path.join(process.cwd(), 'exports');
   fs.mkdirSync(outDir, { recursive: true });

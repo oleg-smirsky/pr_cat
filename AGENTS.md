@@ -54,7 +54,7 @@
 
 Scripts in `scripts/` implement a commit-based cost allocation pipeline. Run in order:
 
-1. `pnpm fetch-commits` — fetch commits from GitHub API into `.cache/`
+1. `pnpm fetch-commits` — fetch commits from GitHub API into `.cache/` (add `--team-config <path>` to also discover and fetch from team members' forks)
 2. `pnpm ingest-commits` — parse and insert commits into the database
 3. `pnpm fetch-jira-issues` / `pnpm ingest-jira-issues` — fetch and store Jira ticket data
 4. `pnpm seed-mappings --config ../pr_cat_prusa/mappings.json` — load project/epic/prefix mappings
@@ -67,8 +67,8 @@ Scripts in `scripts/` implement a commit-based cost allocation pipeline. Run in 
 `pnpm export-report` generates a drill-down HTML report: Month → Project (team %) → Person (FTE) → Commits.
 
 ```
-pnpm export-report -- --team Buddy --from 2025-10 --to 2026-02
-pnpm export-report -- --team Buddy --month 2026-02
+pnpm export-report -- --team <name> --from 2025-10 --to 2026-02
+pnpm export-report -- --team <name> --month 2026-02
 pnpm export-report                                    # all people, all months
 ```
 

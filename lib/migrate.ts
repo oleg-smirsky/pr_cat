@@ -438,6 +438,17 @@ const MIGRATIONS = [
       ALTER TABLE commits ADD COLUMN is_canonical BOOLEAN DEFAULT 1;
       CREATE INDEX IF NOT EXISTS idx_commits_is_canonical ON commits(is_canonical);
     `
+  },
+  {
+    version: 17,
+    name: 'add_commit_project_overrides',
+    sql: `
+      CREATE TABLE IF NOT EXISTS commit_project_overrides (
+        sha TEXT NOT NULL,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        PRIMARY KEY (sha)
+      );
+    `
   }
 ];
 

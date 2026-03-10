@@ -5,13 +5,14 @@
  *   1. Epic mapping      — ticket → jira issue epic_key → epicMappings → project_id
  *                           OR ticket key itself in epicMappings (epic self-reference)
  *   2. Jira project      — ticket → jira issue project_key → projectMappings → project_id
- *   3. Branch matching   — commit branches → branchMappings prefix → project_id
+ *   3. Commit override   — sha → commitOverrides → project_id
  *   4. Message prefix    — commit message prefix (e.g. "INDX:") → prefixMappings → project_id
  *   5. Repo default      — repository_id → repoDefaults → project_id
  *   6. null              — unallocated
  */
 
 export interface CommitInfo {
+  sha: string;
   ticketIds: string[];
   repositoryId: number;
   message: string;
@@ -31,11 +32,12 @@ export interface MappingContext {
   branchExclusions: string[];             // branch names to skip
   prefixMappings: Map<string, number>;    // UPPERCASE prefix → project_id
   repoDefaults: Map<number, number>;      // repository_id → project_id
+  commitOverrides: Map<string, number>;   // sha → project_id
 }
 
 export interface ResolutionResult {
   projectId: number;
-  level: 'epic' | 'jira_project' | 'branch_match' | 'message_prefix' | 'repo_default';
+  level: 'epic' | 'jira_project' | 'commit_override' | 'branch_match' | 'message_prefix' | 'repo_default';
 }
 
 /**
@@ -214,7 +216,13 @@ export function resolveProjectForCommit(
     }
   }
 
-  // Level 3: message prefix (branch matching removed — unreliable after merge)
+  // Level 3: commit-level override (sha → project_id)
+  const overrideProjectId = ctx.commitOverrides.get(commit.sha);
+  if (overrideProjectId !== undefined) {
+    return { projectId: overrideProjectId, level: 'commit_override' };
+  }
+
+  // Level 4: message prefix (branch matching removed — unreliable after merge)
   const prefixes = extractMessagePrefixes(commit.message);
   for (const prefix of prefixes) {
     const projectId = ctx.prefixMappings.get(prefix);

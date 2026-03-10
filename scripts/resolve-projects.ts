@@ -96,6 +96,7 @@ async function markCanonicalCommits(): Promise<void> {
 
 interface CommitRow {
   id: number;
+  sha: string;
   repository_id: number;
   message: string;
 }
@@ -113,8 +114,9 @@ async function loadMappings(): Promise<{
   branchExclusions: string[];
   prefixMappings: Map<string, number>;
   repoDefaults: Map<number, number>;
+  commitOverrides: Map<string, number>;
 }> {
-  const [epicRows, projRows, branchRows, exclRows, prefixRows, repoRows] = await Promise.all([
+  const [epicRows, projRows, branchRows, exclRows, prefixRows, repoRows, overrideRows] = await Promise.all([
     query<{ epic_key: string; project_id: number }>(
       'SELECT epic_key, project_id FROM jira_epic_mappings',
     ),
@@ -133,6 +135,9 @@ async function loadMappings(): Promise<{
     query<{ repository_id: number; project_id: number }>(
       'SELECT repository_id, project_id FROM repo_project_defaults',
     ),
+    query<{ sha: string; project_id: number }>(
+      'SELECT sha, project_id FROM commit_project_overrides',
+    ),
   ]);
 
   return {
@@ -142,6 +147,7 @@ async function loadMappings(): Promise<{
     branchExclusions: exclRows.map(r => r.branch_name),
     prefixMappings: new Map(prefixRows.map(r => [r.prefix, r.project_id])),
     repoDefaults: new Map(repoRows.map(r => [r.repository_id, r.project_id])),
+    commitOverrides: new Map(overrideRows.map(r => [r.sha, r.project_id])),
   };
 }
 
@@ -196,21 +202,21 @@ async function main(): Promise<void> {
   const force = process.argv.includes('--force');
 
   console.log('Loading mapping tables...');
-  const { epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults } = await loadMappings();
+  const { epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults, commitOverrides } = await loadMappings();
   console.log(
-    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Branch mappings: ${branchMappings.size}, Branch exclusions: ${branchExclusions.length}, Prefix mappings: ${prefixMappings.size}, Repo defaults: ${repoDefaults.size}`,
+    `  Epic mappings: ${epicMappings.size}, Project mappings: ${projectMappings.size}, Branch mappings: ${branchMappings.size}, Branch exclusions: ${branchExclusions.length}, Prefix mappings: ${prefixMappings.size}, Repo defaults: ${repoDefaults.size}, Commit overrides: ${commitOverrides.size}`,
   );
 
   console.log('Loading Jira issues...');
   const jiraIssues = await loadJiraIssues();
   console.log(`  Jira issues: ${jiraIssues.size}`);
 
-  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults };
+  const ctx: MappingContext = { jiraIssues, epicMappings, projectMappings, branchMappings, branchExclusions, prefixMappings, repoDefaults, commitOverrides };
 
   // Load commits
   const whereClause = force ? '' : 'WHERE project_id IS NULL';
   const commits = await query<CommitRow>(
-    `SELECT id, repository_id, message FROM commits ${whereClause} ORDER BY id`,
+    `SELECT id, sha, repository_id, message FROM commits ${whereClause} ORDER BY id`,
   );
   console.log(`\nCommits to process: ${commits.length}${force ? ' (--force: all)' : ' (unresolved only)'}`);
 
@@ -220,7 +226,7 @@ async function main(): Promise<void> {
   }
 
   // Stats per level
-  const stats = { epic: 0, jira_project: 0, branch_match: 0, message_prefix: 0, repo_default: 0, unallocated: 0, total: 0 };
+  const stats = { epic: 0, jira_project: 0, commit_override: 0, branch_match: 0, message_prefix: 0, repo_default: 0, unallocated: 0, total: 0 };
 
   // Process in batches
   for (let i = 0; i < commits.length; i += BATCH_SIZE) {
@@ -238,7 +244,7 @@ async function main(): Promise<void> {
         const ticketIds = ticketMap.get(commit.id) ?? [];
         const branchNames = branchMap.get(commit.id) ?? [];
         const result = resolveProjectForCommit(
-          { ticketIds, repositoryId: commit.repository_id, message: commit.message, branchNames },
+          { sha: commit.sha, ticketIds, repositoryId: commit.repository_id, message: commit.message, branchNames },
           ctx,
         );
 
@@ -264,12 +270,13 @@ async function main(): Promise<void> {
 
   console.log('\nResolution complete:');
   console.log(`  Total:          ${stats.total}`);
-  console.log(`  Epic mapping:   ${stats.epic}`);
-  console.log(`  Jira project:   ${stats.jira_project}`);
-  console.log(`  Branch match:   ${stats.branch_match}`);
-  console.log(`  Message prefix: ${stats.message_prefix}`);
-  console.log(`  Repo default:   ${stats.repo_default}`);
-  console.log(`  Unallocated:    ${stats.unallocated}`);
+  console.log(`  Epic mapping:     ${stats.epic}`);
+  console.log(`  Jira project:     ${stats.jira_project}`);
+  console.log(`  Commit override:  ${stats.commit_override}`);
+  console.log(`  Branch match:     ${stats.branch_match}`);
+  console.log(`  Message prefix:   ${stats.message_prefix}`);
+  console.log(`  Repo default:     ${stats.repo_default}`);
+  console.log(`  Unallocated:      ${stats.unallocated}`);
 
   // Deduplication pass — mark cherry-pick duplicates as non-canonical
   await markCanonicalCommits();

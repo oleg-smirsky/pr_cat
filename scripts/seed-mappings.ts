@@ -4,14 +4,18 @@
  *
  * Usage:
  *   pnpm seed-mappings --config ../pr_cat_prusa/mappings.json
+ *   pnpm seed-mappings --config ../pr_cat_prusa/mappings.json --overrides ../pr_cat_prusa/commit-overrides.json
  *
- * Or set MAPPINGS_CONFIG env var.
+ * Or set MAPPINGS_CONFIG / OVERRIDES_CONFIG env vars.
  *
- * The config file defines projects and four mapping types:
+ * The config file defines projects and mapping types:
  *   - epicMappings:        Jira epic key → project name
  *   - jiraProjectMappings: Jira project key → project name
  *   - prefixMappings:      commit message prefix → project name
  *   - repoDefaults:        repo full_name → project name
+ *
+ * The overrides file maps individual commit SHAs to project names:
+ *   - commitMappings:      sha → project name
  *
  * All inserts are idempotent (INSERT OR REPLACE / INSERT OR IGNORE).
  */
@@ -33,16 +37,28 @@ interface MappingsConfig {
   repoDefaults: Record<string, string>;        // repo full_name → project name
 }
 
-function getConfigPath(): string {
-  const flagIndex = process.argv.indexOf('--config');
+function getFlagValue(flag: string, envVar: string): string | null {
+  const flagIndex = process.argv.indexOf(flag);
   if (flagIndex !== -1 && process.argv[flagIndex + 1]) {
     return process.argv[flagIndex + 1];
   }
-  if (process.env.MAPPINGS_CONFIG) {
-    return process.env.MAPPINGS_CONFIG;
+  if (process.env[envVar]) {
+    return process.env[envVar]!;
   }
-  console.error('Error: Provide config path via --config <path> or MAPPINGS_CONFIG env var.');
-  process.exit(1);
+  return null;
+}
+
+function getConfigPath(): string {
+  const path = getFlagValue('--config', 'MAPPINGS_CONFIG');
+  if (!path) {
+    console.error('Error: Provide config path via --config <path> or MAPPINGS_CONFIG env var.');
+    process.exit(1);
+  }
+  return path;
+}
+
+interface OverridesConfig {
+  commitMappings: Record<string, string>; // sha → project name
 }
 
 async function main(): Promise<void> {
@@ -173,14 +189,31 @@ async function main(): Promise<void> {
       repoCount++;
     }
 
+    // 8. Commit overrides (from separate file)
+    let overrideCount = 0;
+    const overridesPath = getFlagValue('--overrides', 'OVERRIDES_CONFIG');
+    if (overridesPath && fs.existsSync(overridesPath)) {
+      const overrides: OverridesConfig = JSON.parse(fs.readFileSync(overridesPath, 'utf-8'));
+      for (const [sha, projectName] of Object.entries(overrides.commitMappings ?? {})) {
+        const projectId = resolve(projectName, `commit ${sha.slice(0, 8)}`);
+        if (projectId === null) continue;
+        await tx.execute(
+          'INSERT OR REPLACE INTO commit_project_overrides (sha, project_id) VALUES (?, ?)',
+          [sha, projectId],
+        );
+        overrideCount++;
+      }
+    }
+
     console.log(`\nSeeded:`);
-    console.log(`  Projects:         ${cfg.projects.length}`);
-    console.log(`  Epic mappings:    ${epicCount}`);
-    console.log(`  Jira proj maps:   ${jpCount}`);
-    console.log(`  Prefix mappings:  ${prefixCount}`);
-    console.log(`  Branch mappings: ${branchCount}`);
-    console.log(`  Branch excl.:    ${exclCount}`);
-    console.log(`  Repo defaults:    ${repoCount}`);
+    console.log(`  Projects:           ${cfg.projects.length}`);
+    console.log(`  Epic mappings:      ${epicCount}`);
+    console.log(`  Jira proj maps:     ${jpCount}`);
+    console.log(`  Prefix mappings:    ${prefixCount}`);
+    console.log(`  Branch mappings:    ${branchCount}`);
+    console.log(`  Branch excl.:       ${exclCount}`);
+    console.log(`  Repo defaults:      ${repoCount}`);
+    console.log(`  Commit overrides:   ${overrideCount}`);
   });
 
   console.log('Done.');
